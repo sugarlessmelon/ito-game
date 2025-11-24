@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线 ito - 自定义题目版</title>
+    <style>
+        body { font-family: 'Helvetica Neue', sans-serif; background: #f0f2f5; text-align: center; padding: 20px; }
+        #login-screen, #game-screen { max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .hidden { display: none; }
+        
+        h1 { color: #e63946; }
+        
+        /* 题目编辑区域样式 */
+        .theme-box { 
+            background: #f1faee; 
+            padding: 20px; 
+            border-radius: 8px; 
+            margin-bottom: 20px; 
+            border: 2px solid #a8dadc; 
+        }
+        #current-theme-display {
+            font-size: 28px;
+            font-weight: bold;
+            color: #1d3557;
+            margin-bottom: 15px;
+            min-height: 40px; /* 防止没有题目时高度坍塌 */
+        }
+        .theme-input-area {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+        .theme-input-area input {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .theme-input-area button {
+            font-size: 14px;
+            padding: 8px 12px;
+            margin: 0;
+        }
+        
+        /* 其他游戏元素 */
+        .my-card { font-size: 80px; font-weight: bold; color: #e63946; margin: 20px 0; }
+        
+        button { background: #457b9d; color: white; border: none; padding: 10px 20px; border-radius: 6px; font-size: 16px; cursor: pointer; margin: 5px; }
+        button:hover { background: #1d3557; }
+        button.btn-confirm { background: #2a9d8f; } /* 绿色确定键 */
+        button.btn-cancel { background: #e63946; } /* 红色取消键 */
+        button.play-btn { background: #e63946; font-size: 20px; padding: 15px 30px; width: 100%; margin-top: 10px; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+
+        #table-cards { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; }
+        .played-card { background: #1d3557; color: white; padding: 10px; border-radius: 8px; width: 80px; }
+        .played-card span { display: block; font-size: 24px; font-weight: bold; }
+        
+        #player-list { text-align: left; margin-top: 20px; color: #666; font-size: 14px; }
+        input { padding: 10px; font-size: 16px; border-radius: 6px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+
+    <div id="login-screen">
+        <h1>在线 ito</h1>
+        <p>输入名字开始游戏</p>
+        <input type="text" id="username" placeholder="你的名字" />
+        <br><br>
+        <button onclick="joinGame()">加入游戏</button>
+    </div>
+
+    <div id="game-screen" class="hidden">
+        
+        <div class="theme-box">
+            <div style="font-size: 14px; color: #666; margin-bottom: 5px;">当前主题</div>
+            <div id="current-theme-display">等待设置...</div>
+            
+            <div class="theme-input-area">
+                <input type="text" id="theme-input" placeholder="输入自定义题目..." />
+                <button class="btn-confirm" onclick="setCustomTheme()">确定</button>
+                <button class="btn-cancel" onclick="cancelThemeInput()">取消</button>
+            </div>
+        </div>
+
+        <div id="my-area">
+            <h3>你的数字</h3>
+            <div id="my-number" class="my-card">?</div>
+            <button id="btn-play" class="play-btn" onclick="playCard()" disabled>出牌</button>
+        </div>
+
+        <hr>
+
+        <h3>桌面</h3>
+        <div id="table-cards"></div>
+
+        <hr>
+        <div style="margin-top: 20px;">
+            <button onclick="requestStart()">发牌 / 下一轮</button>
+            <button onclick="requestReset()" style="background:#666">重置全场</button>
+        </div>
+
+        <div id="player-list">
+            <strong>在线玩家：</strong> <span id="players-span"></span>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let myName = "";
+
+        function joinGame() {
+            const input = document.getElementById('username');
+            if (input.value.trim()) {
+                myName = input.value;
+                socket.emit('joinGame', myName);
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('game-screen').classList.remove('hidden');
+            }
+        }
+
+        // --- 新增：题目相关逻辑 ---
+        
+        // 点击“确定”
+        function setCustomTheme() {
+            const input = document.getElementById('theme-input');
+            const val = input.value.trim();
+            if (val) {
+                // 发送给服务器
+                socket.emit('updateTheme', val);
+                // 这里不需要手动清空，等服务器广播回来再更新界面也可以
+                // 但为了体验好，也可以留着字方便修改
+            }
+        }
+
+        // 点击“取消”
+        function cancelThemeInput() {
+            document.getElementById('theme-input').value = ""; // 清空输入框
+        }
+
+        // 监听服务器发来的题目更新
+        socket.on('themeUpdated', (newTheme) => {
+            document.getElementById('current-theme-display').textContent = newTheme;
+        });
+
+        // ------------------------
+
+        function requestStart() { socket.emit('startGame'); }
+        function requestReset() { socket.emit('resetGame'); }
+        function playCard() { 
+            if(confirm("确定要出牌吗？")) {
+                socket.emit('playCard'); 
+            }
+        }
+
+        // 基础游戏逻辑监听
+        socket.on('updatePlayerList', (players) => {
+            document.getElementById('players-span').textContent = players.map(p => p.name).join(', ');
+        });
+
+        socket.on('gameStarted', () => {
+            document.getElementById('table-cards').innerHTML = '';
+            document.getElementById('btn-play').disabled = false;
+            document.getElementById('btn-play').textContent = "出牌";
+        });
+
+        socket.on('yourCard', (num) => {
+            document.getElementById('my-number').textContent = num;
+        });
+
+        socket.on('updateTable', (cards) => {
+            cards.sort((a, b) => a.number - b.number);
+            const container = document.getElementById('table-cards');
+            container.innerHTML = '';
+            cards.forEach(c => {
+                const div = document.createElement('div');
+                div.className = 'played-card';
+                div.innerHTML = `<span>${c.number}</span><small>${c.name}</small>`;
+                container.appendChild(div);
+            });
+        });
+
+        socket.on('cardPlayed', (id) => {
+            if (id === socket.id) {
+                document.getElementById('my-number').textContent = "已出";
+                document.getElementById('btn-play').disabled = true;
+            }
+        });
+
+        socket.on('resetGame', () => {
+            document.getElementById('my-number').textContent = "?";
+            document.getElementById('table-cards').innerHTML = '';
+            document.getElementById('btn-play').disabled = true;
+            document.getElementById('theme-input').value = ""; // 重置时也清空输入框
+        });
+    </script>
+</body>
+</html>
