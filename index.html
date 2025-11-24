@@ -3,14 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ito Online - 稳定版</title>
+    <title>ito Online</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
         :root { --primary: #1d3557; --accent: #e63946; --bg: #f0f2f5; --card-bg: #fff; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); text-align: center; margin: 0; padding-bottom: 220px; }
         .container { max-width: 900px; margin: 0 auto; padding: 10px; }
-        
-        /* 通用工具类 */
         .hidden { display: none !important; }
         .btn { border: none; padding: 10px 15px; border-radius: 6px; font-size: 16px; cursor: pointer; color: white; transition: 0.2s; margin: 5px; touch-action: manipulation; }
         .btn-blue { background: #457b9d; }
@@ -20,37 +18,27 @@
         .btn:disabled { opacity: 0.5; cursor: not-allowed; background: #999; }
         input { padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; }
 
-        /* 布局：主游戏区 + 侧边玩家栏 */
         .game-layout { display: flex; gap: 20px; align-items: flex-start; }
         .main-content { flex: 1; width: 100%; }
-        
-        /* 玩家列表 (纵向) */
         .sidebar { width: 120px; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: left; font-size: 14px; flex-shrink: 0; }
         .sidebar h4 { margin: 0 0 10px 0; color: var(--primary); font-size: 16px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
         .player-item { padding: 5px 0; color: #555; border-bottom: 1px solid #f0f0f0; }
         .player-item.is-me { color: var(--accent); font-weight: bold; }
-        .player-item.done { color: #2a9d8f; } /* 出牌了变绿 */
+        .player-item.done { color: #2a9d8f; }
 
-        /* 顶部栏 */
         .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-        
-        /* 题目 */
         .theme-box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; position: relative; }
         #theme-display { font-size: 24px; font-weight: bold; color: var(--primary); margin: 10px 0; word-wrap: break-word; }
         
-        /* 自己的手牌 */
         .my-area { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; transition: 0.3s; }
         .card-number { font-size: 72px; font-weight: 800; color: var(--accent); line-height: 1; margin: 10px 0; }
         
-        /* 桌面区域 */
         .table-area { min-height: 220px; background: #e9ecef; border-radius: 12px; padding: 20px; border: 2px dashed #cbd5e1; position: relative; }
         #card-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
         
-        /* 卡片样式 */
         .game-card { width: 100px; height: 140px; perspective: 1000px; position: relative; cursor: grab; touch-action: none; }
         .game-card:active { cursor: grabbing; }
         .game-card.dragging { opacity: 0.5; }
-        
         .card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.8s; transform-style: preserve-3d; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
         .game-card.flipped .card-inner { transform: rotateY(180deg); }
         .game-card.error .card-back { border: 4px solid #e63946; background: #fff0f0; }
@@ -63,15 +51,12 @@
         .card-back .big-num { font-size: 40px; font-weight: bold; color: var(--accent); }
         .card-back small { font-size: 12px; color: #666; }
 
-        /* 结果条 */
         #result-bar { margin-top: 15px; padding: 15px; border-radius: 8px; font-size: 18px; font-weight: bold; display: none; }
         .result-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
         .result-fail { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
 
-        /* 旁观者遮罩提示 */
         #spectator-overlay { padding: 20px; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 8px; margin-bottom: 20px; display: none; }
 
-        /* 聊天框 */
         #chat-container { position: fixed; bottom: 0; left: 0; right: 0; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); padding: 10px; max-width: 900px; margin: 0 auto; z-index: 99; border-top-left-radius: 12px; border-top-right-radius: 12px; }
         #chat-messages { height: 120px; overflow-y: auto; border: 1px solid #eee; margin-bottom: 10px; padding: 5px; text-align: left; background: #f9f9f9; border-radius: 6px; font-size: 14px; }
         .chat-line { margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;}
@@ -79,7 +64,6 @@
         .chat-controls { display: flex; gap: 5px; }
         #chat-input { flex-grow: 1; }
 
-        /* 移动端适配 */
         @media(max-width: 600px) {
             .game-layout { flex-direction: column-reverse; }
             .sidebar { width: 100%; box-sizing: border-box; text-align: center; }
@@ -110,8 +94,7 @@
         <div class="game-layout">
             <div class="sidebar">
                 <h4>在线玩家</h4>
-                <div id="player-list-container">
-                    </div>
+                <div id="player-list-container"></div>
             </div>
 
             <div class="main-content">
@@ -175,7 +158,6 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        // 配置 Socket 自动重连
         const socket = io({
             reconnection: true,
             reconnectionAttempts: Infinity
@@ -186,37 +168,28 @@
         let myCurrentNumber = null;
         let isMyCardPlayed = false;
         let isSpectator = false;
-        let currentStatus = 'waiting'; // waiting | playing | revealed
-        let activePlayerCount = 0; // 参与本局的玩家数
-        let tableCardCount = 0; // 桌上的牌数
+        let currentStatus = 'waiting'; 
+        let activePlayerCount = 0; 
+        let tableCardCount = 0; 
         let sortableInstance = null;
 
-        // --- 初始化与登录 ---
-
-        // 页面可见性改变时检查连接（针对手机后台切换）
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === 'visible') {
-                console.log("页面切回前台，检查连接...");
                 if (!socket.connected) {
                     socket.connect();
                 } else {
-                    // 如果连接着，也最好重发一次登录以同步最新状态
                     if(myUid && myName) socket.emit('login', { uid: myUid, name: myName });
                 }
             }
         });
 
-        // 核心：每次连接成功（包括重连），自动重新登录
         socket.on('connect', () => {
-            console.log("Connected to server");
             if (myUid && myName) {
                 socket.emit('login', { uid: myUid, name: myName });
             }
         });
 
         socket.on('disconnect', () => {
-            console.log("Disconnected");
-            // 可以显示一个断线提示
             document.getElementById('my-name-display').textContent = "连接断开，重连中...";
         });
 
@@ -247,27 +220,22 @@
             location.reload();
         }
 
-        // --- Socket 事件处理 ---
-
         socket.on('loginSuccess', (data) => {
             const player = data.me;
             isSpectator = player.isSpectator;
             currentStatus = data.gameConfig.status;
             activePlayerCount = data.activePlayerCount;
             
-            // UI初始化
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('game-screen').classList.remove('hidden');
             document.getElementById('chat-container').classList.remove('hidden');
             document.getElementById('my-name-display').textContent = player.name;
             document.getElementById('theme-display').textContent = data.gameConfig.theme;
 
-            // 恢复聊天记录
             const chatBox = document.getElementById('chat-messages');
-            chatBox.innerHTML = ''; // 清空旧的避免重复
+            chatBox.innerHTML = ''; 
             data.chatHistory.forEach(msg => appendChat(msg));
 
-            // 恢复手牌
             if (player.card) {
                 myCurrentNumber = player.card;
                 document.getElementById('my-number').textContent = player.card;
@@ -277,7 +245,6 @@
                 }
             }
 
-            // 渲染桌面
             renderTable(data.tableCards, currentStatus === 'revealed');
             toggleSpectatorMode(isSpectator);
             updateGameButtons();
@@ -286,7 +253,6 @@
         socket.on('updatePlayerList', (list) => {
             const container = document.getElementById('player-list-container');
             container.innerHTML = '';
-            // 计算活跃玩家数
             activePlayerCount = list.filter(p => !p.isSpectator).length;
             
             list.forEach(p => {
@@ -299,7 +265,7 @@
                 div.textContent = p.name + statusText;
                 container.appendChild(div);
             });
-            updateGameButtons(); // 人数变了，按钮状态可能要变
+            updateGameButtons(); 
         });
 
         socket.on('updateTheme', (t) => { document.getElementById('theme-display').textContent = t; });
@@ -311,9 +277,6 @@
             document.getElementById('my-hand-area').classList.remove('hidden');
             document.getElementById('result-bar').style.display = 'none';
             
-            // 如果我是旁观者，但我依然在房间里，新游戏开始时，服务器会把我的 isSpectator 设为 false
-            // 所以这里需要重置一下本地状态，或者等待 loginSuccess/updatePlayerList 更新
-            // 但最安全的是重置本地UI
             isSpectator = false; 
             toggleSpectatorMode(false);
             
@@ -364,13 +327,9 @@
             updateGameButtons();
         });
 
-        socket.on('gameEnded', () => {
-            // 游戏结束，旁观者可以在下一局加入
-        });
+        socket.on('gameEnded', () => {});
 
         socket.on('chatMessage', (msg) => { appendChat(msg); });
-
-        // --- 逻辑控制函数 ---
 
         function toggleSpectatorMode(isSpec) {
             const overlay = document.getElementById('spectator-overlay');
@@ -389,28 +348,23 @@
                 overlay.style.display = 'none';
                 themeBtn.disabled = false;
                 themeInput.disabled = false;
-                // 其他按钮状态由 updateGameButtons 接管
             }
         }
 
-        // 按钮状态机
         function updateGameButtons() {
-            if (isSpectator) return; // 旁观者完全接管
+            if (isSpectator) return; 
 
             const btnMain = document.getElementById('btn-main-action');
             const btnReveal = document.getElementById('btn-reveal');
 
-            // 1. 设置“开始/重开”按钮
             if (currentStatus === 'playing') {
                 btnMain.textContent = "重新开始本局";
-                btnMain.className = "btn btn-gray"; // 警告色或灰色
+                btnMain.className = "btn btn-gray"; 
             } else {
                 btnMain.textContent = "开始游戏";
                 btnMain.className = "btn btn-green";
             }
 
-            // 2. 设置“开牌”按钮
-            // 只有当状态是 playing 且 桌上的牌数量 == 活跃玩家数量时，才可点
             if (currentStatus === 'playing' && tableCardCount > 0 && tableCardCount === activePlayerCount) {
                 btnReveal.disabled = false;
             } else {
@@ -429,7 +383,6 @@
         }
 
         function tryRevealCards() {
-            // 前端再次校验
             if (tableCardCount !== activePlayerCount) return;
             socket.emit('revealCards');
         }
@@ -442,13 +395,13 @@
             }
         }
 
-        // --- 聊天与输入 ---
-
+        // --- 修复确认：聊天与输入检测 ---
         function sendChat() {
             const input = document.getElementById('chat-input');
             const msg = input.value.trim();
             if (!msg) return;
 
+            // 检查逻辑
             if (myCurrentNumber !== null) {
                 if (msg.includes(myCurrentNumber.toString())) {
                     alert(`🚫 禁止发送！消息包含手牌数字 "${myCurrentNumber}"。`);
@@ -468,11 +421,10 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        // --- 手牌操作 ---
         function confirmDesc(emit = true) {
             const val = document.getElementById('my-desc-input').value.trim();
             if (!val) return alert("请输入描述");
-            const currentDesc = val; // 临时变量
+            const currentDesc = val; 
             
             document.getElementById('input-group').classList.add('hidden');
             document.getElementById('desc-display-group').classList.remove('hidden');
@@ -501,7 +453,7 @@
             } else {
                 btnPlay.classList.remove('hidden');
                 btnTake.classList.add('hidden');
-                btnPlay.disabled = false; // 有描述就能出
+                btnPlay.disabled = false; 
             }
         }
 
@@ -516,7 +468,6 @@
             document.getElementById('btn-takeback').classList.add('hidden');
         }
 
-        // --- 渲染与拖拽 (解除限制版) ---
         function renderTable(cards, isRevealed = false, failedIndices = []) {
             const list = document.getElementById('card-list');
             list.innerHTML = '';
@@ -527,12 +478,10 @@
                 if (failedIndices.includes(index)) el.classList.add('error');
                 el.setAttribute('data-uid', c.uid);
 
-                // 正面
                 const front = document.createElement('div');
                 front.className = 'card-front';
                 front.innerHTML = `<div class="owner-name">${c.name}</div><div class="card-desc">${c.desc || '...'}</div>`;
 
-                // 背面
                 const back = document.createElement('div');
                 back.className = 'card-back';
                 const displayNum = c.number !== null ? c.number : '?'; 
@@ -546,13 +495,11 @@
                 list.appendChild(el);
             });
 
-            // 拖拽初始化 (所有人都可以拖动，只要没开牌)
             if (!isRevealed) {
                 if (!sortableInstance) {
                     sortableInstance = new Sortable(list, {
                         animation: 150,
                         ghostClass: 'dragging',
-                        // 移除 draggable: ".draggable-item" 限制
                         onEnd: function (evt) {
                             const newOrder = [];
                             const items = list.querySelectorAll('.game-card');
