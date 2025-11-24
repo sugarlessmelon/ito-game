@@ -20,10 +20,8 @@ let gameConfig = {
     status: "waiting", 
 };
 
-// 自动重置的定时器引用
 let autoResetTimer = null;
 
-// 获取公开的桌面数据
 function getPublicTableData() {
     if (gameConfig.status === 'revealed') {
         return tableCards; 
@@ -41,12 +39,11 @@ function getActivePlayerCount() {
     return Object.values(players).filter(p => !p.isSpectator).length;
 }
 
-// 核心：彻底重置游戏数据
 function resetGameData() {
     console.log("所有玩家已退出，重置游戏数据...");
     players = {};
     tableCards = [];
-    chatHistory = []; // 清空聊天记录
+    chatHistory = [];
     gameConfig = {
         theme: "等待设置题目...",
         status: "waiting",
@@ -54,9 +51,7 @@ function resetGameData() {
 }
 
 io.on('connection', (socket) => {
-    // 有人连接时，如果有待执行的重置任务（说明刚才有人刷新了），取消重置
     if (autoResetTimer) {
-        console.log("检测到玩家重连，取消自动重置");
         clearTimeout(autoResetTimer);
         autoResetTimer = null;
     }
@@ -86,10 +81,8 @@ io.on('connection', (socket) => {
         
         socket.join('gameRoom');
         
-        // --- 聊天记录过滤 logic ---
-        // 1. 获取当前时间
         const now = Date.now();
-        // 2. 过滤掉超过 5 小时的消息 (5 * 60 * 60 * 1000)
+        // 过滤5小时内的消息
         chatHistory = chatHistory.filter(msg => (now - msg.timestamp) < 5 * 60 * 60 * 1000);
 
         socket.emit('loginSuccess', {
@@ -108,6 +101,7 @@ io.on('connection', (socket) => {
         io.to('gameRoom').emit('updateTheme', theme);
     });
 
+    // --- 核心修复位置 ---
     socket.on('startGame', (isRestart) => {
         tableCards = []; 
         gameConfig.status = 'playing'; 
@@ -115,6 +109,10 @@ io.on('connection', (socket) => {
         let numbers = Array.from({length: 100}, (_, i) => i + 1);
         numbers.sort(() => Math.random() - 0.5);
 
+        // 1. 先广播游戏开始 (让前端重置界面，清空旧数据)
+        io.to('gameRoom').emit('gameStarted', { activePlayerCount: getActivePlayerCount() });
+
+        // 2. 然后再发新的手牌 (前端收到后会写入 myCurrentNumber)
         for (let uid in players) {
             players[uid].isSpectator = false;
             players[uid].card = numbers.pop();
@@ -127,7 +125,6 @@ io.on('connection', (socket) => {
             }
         }
 
-        io.to('gameRoom').emit('gameStarted', { activePlayerCount: getActivePlayerCount() });
         io.to('gameRoom').emit('updateTable', getPublicTableData()); 
         io.to('gameRoom').emit('updatePlayerList', Object.values(players));
     });
@@ -210,32 +207,19 @@ io.on('connection', (socket) => {
             const chatMsg = { 
                 name: p.name, 
                 msg: msg,
-                timestamp: Date.now() // 记录时间戳用于过滤
+                timestamp: Date.now()
             };
             chatHistory.push(chatMsg);
-            
-            // 简单的内存限制，防止无限增长
             if (chatHistory.length > 100) chatHistory.shift();
-            
             io.to('gameRoom').emit('chatMessage', chatMsg);
         }
     });
 
     socket.on('disconnect', () => {
-        // 从 players 移除断开的 socket 对应的用户
         let disconnectedUid = null;
         for (let uid in players) {
             if (players[uid].socketId === socket.id) {
                 disconnectedUid = uid;
-                // 注意：这里我们选择暂时不删除 players[uid] 的数据结构，
-                // 而是从 UI 列表里让他“消失”，或者标记为离线。
-                // 但根据你的需求“所有人退出后清空”，我们需要即时移除连接状态。
-                
-                // 为了配合前端的“掉线重连”，通常我们会保留 player 数据一小会儿。
-                // 但这里我们简单处理：直接从列表逻辑中剔除连接，
-                // 如果用户马上重连，login 会重新接管。
-                
-                // 这里彻底删除玩家，配合下面的“全部无人”检测
                 delete players[uid]; 
                 break;
             }
@@ -243,16 +227,10 @@ io.on('connection', (socket) => {
 
         io.to('gameRoom').emit('updatePlayerList', Object.values(players));
 
-        // --- 核心：检测是否还有人 ---
-        // 获取当前 Socket.IO 房间内的连接数
         const room = io.sockets.adapter.rooms.get('gameRoom');
         const numClients = room ? room.size : 0;
 
-        console.log(`有人断开。当前剩余连接数: ${numClients}`);
-
         if (numClients === 0) {
-            console.log("房间无人，10秒后将清空数据...");
-            // 设置 10 秒倒计时，防止只是刷新页面
             autoResetTimer = setTimeout(() => {
                 resetGameData();
             }, 10000); 
