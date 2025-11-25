@@ -93,13 +93,12 @@
 
         #spectator-overlay { padding: 20px; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 8px; margin-bottom: 20px; display: none; }
 
-        /* --- 新增：Toast 提示框样式 --- */
         #toast-notification {
             position: fixed;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            background-color: rgba(42, 157, 143, 0.95); /* Greenish */
+            background-color: rgba(42, 157, 143, 0.95);
             color: white;
             padding: 12px 24px;
             border-radius: 30px;
@@ -107,7 +106,7 @@
             z-index: 2000;
             opacity: 0;
             transition: opacity 0.5s ease;
-            pointer-events: none; /* 隐形时不可点击 */
+            pointer-events: none;
             font-weight: bold;
             font-size: 16px;
         }
@@ -115,11 +114,10 @@
             opacity: 1;
         }
 
-        /* 标题样式微调，防止移动端太拥挤 */
         h1.main-title {
             color: #e63946;
             margin-bottom: 20px;
-            font-size: 24px; /* 移动端默认小一点 */
+            font-size: 24px;
             line-height: 1.4;
         }
 
@@ -142,10 +140,10 @@
 
             .game-card { width: 80px; height: 110px; }
             .card-front .card-desc { font-size: 12px; }
-            h1.main-title { font-size: 20px; } /* 极窄屏幕更小 */
+            h1.main-title { font-size: 20px; }
         }
         @media(min-width: 601px) {
-            h1.main-title { font-size: 32px; } /* 电脑端大一点 */
+            h1.main-title { font-size: 32px; }
         }
     </style>
 </head>
@@ -329,10 +327,12 @@
             updateGameButtons();
         });
 
+        // 修改点：前端人数统计同步修复
         socket.on('updatePlayerList', (list) => {
             const container = document.getElementById('player-list-container');
             container.innerHTML = '';
-            activePlayerCount = list.filter(p => !p.isSpectator).length;
+            // 核心修复：这里也需要 && p.online
+            activePlayerCount = list.filter(p => !p.isSpectator && p.online).length;
             
             list.forEach(p => {
                 const div = document.createElement('div');
@@ -350,10 +350,9 @@
             updateGameButtons(); 
         });
 
-        // 修改点1：收到主题更新时，弹出 Toast
         socket.on('updateTheme', (t) => { 
             document.getElementById('theme-display').textContent = t;
-            showToast(); // 触发提示
+            showToast(); 
         });
 
         socket.on('gameStarted', (data) => {
@@ -417,17 +416,13 @@
 
         socket.on('chatMessage', (msg) => { appendChat(msg); });
 
-        // --- 新增：Toast 显示逻辑 ---
         function showToast() {
             const toast = document.getElementById('toast-notification');
             toast.classList.add('show');
-            
-            // 清除之前的定时器（防止快速切换主题导致提前消失）
             if (toastTimeout) clearTimeout(toastTimeout);
-            
             toastTimeout = setTimeout(() => {
                 toast.classList.remove('show');
-            }, 3000); // 3秒后淡出
+            }, 3000); 
         }
 
         function toggleSpectatorMode(isSpec) {
