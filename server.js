@@ -35,9 +35,9 @@ function getPublicTableData() {
     }
 }
 
+// --- 核心修复：只统计在线的非旁观者 ---
 function getActivePlayerCount() {
-    // 活跃玩家 = 不是旁观者
-    return Object.values(players).filter(p => !p.isSpectator).length;
+    return Object.values(players).filter(p => !p.isSpectator && p.online).length;
 }
 
 function resetGameData() {
@@ -52,7 +52,6 @@ function resetGameData() {
 }
 
 io.on('connection', (socket) => {
-    // 如果有人连上来，取消自动清空倒计时
     if (autoResetTimer) {
         clearTimeout(autoResetTimer);
         autoResetTimer = null;
@@ -61,17 +60,12 @@ io.on('connection', (socket) => {
     socket.on('login', ({ uid, name }) => {
         let isNewUser = !players[uid];
         
-        // 1. 如果是老玩家重连
         if (players[uid]) {
             players[uid].socketId = socket.id;
             players[uid].name = name || players[uid].name;
-            players[uid].online = true; // 标记为在线
-            // 注意：这里绝对不修改 players[uid].isSpectator，保持之前的状态
-        } 
-        // 2. 如果是真正的新玩家
-        else {
+            players[uid].online = true; 
+        } else {
             let isSpectator = false;
-            // 只有新加入的人，在游戏进行中时，才被迫成为旁观者
             if (gameConfig.status === 'playing') {
                 isSpectator = true;
             }
@@ -116,11 +110,11 @@ io.on('connection', (socket) => {
         let numbers = Array.from({length: 100}, (_, i) => i + 1);
         numbers.sort(() => Math.random() - 0.5);
 
-        // 先广播开始
         io.to('gameRoom').emit('gameStarted', { activePlayerCount: getActivePlayerCount() });
 
         for (let uid in players) {
-            // 只要在房间里的人，开始新游戏时都变成正式玩家
+            // 注意：即使离线的人，这里也会被重置状态，但不会被计入 getActivePlayerCount
+            // 等他们上线时，依然持有这张牌
             players[uid].isSpectator = false; 
             players[uid].card = numbers.pop();
             players[uid].desc = "";     
@@ -185,6 +179,7 @@ io.on('connection', (socket) => {
 
     socket.on('revealCards', () => {
         const activeCount = getActivePlayerCount();
+        // 允许开牌的条件：桌上牌数 >= 在线活跃人数
         if (tableCards.length < activeCount || activeCount === 0) return;
 
         gameConfig.status = 'revealed';
@@ -223,16 +218,13 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
-        // --- 核心修复：不删除玩家，只标记离线 ---
-        let disconnectedUid = null;
         for (let uid in players) {
             if (players[uid].socketId === socket.id) {
-                players[uid].online = false; // 标记离线
+                players[uid].online = false; 
                 break;
             }
         }
         
-        // 广播更新（前端可以把离线玩家变灰）
         io.to('gameRoom').emit('updatePlayerList', Object.values(players));
 
         const room = io.sockets.adapter.rooms.get('gameRoom');
