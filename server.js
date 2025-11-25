@@ -234,6 +234,14 @@ io.on('connection', (socket) => {
             isSuccess: isSuccess,
             failedIndices: failedIndices
         });
+
+        // --- 修改开始：游戏结束时，全员转正 ---
+        for (let uid in players) {
+            players[uid].isSpectator = false; // 所有人取消旁观者身份
+        }
+        // 广播最新的玩家列表（这将触发前端更新UI，解锁开始按钮）
+        io.to('gameRoom').emit('updatePlayerList', Object.values(players));
+        // --- 修改结束 ---
         
         io.to('gameRoom').emit('gameEnded');
     });
