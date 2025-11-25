@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ito Online</title>
+    <title>大三索整活俱乐部之系/命悬一线/ito</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
         :root { --primary: #1d3557; --accent: #e63946; --bg: #f0f2f5; --card-bg: #fff; }
@@ -18,11 +18,9 @@
         .btn:disabled { opacity: 0.5; cursor: not-allowed; background: #999; }
         input { padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; }
 
-        /* 游戏整体布局 */
         .game-layout { display: flex; gap: 20px; align-items: flex-start; }
         .main-content { flex: 1; width: 100%; }
         
-        /* 侧边栏：包含玩家列表和聊天框 */
         .sidebar { 
             width: 250px; 
             flex-shrink: 0; 
@@ -31,7 +29,6 @@
             gap: 20px; 
         }
 
-        /* 玩家列表盒子 */
         .player-box {
             background: white; 
             padding: 10px; 
@@ -49,7 +46,6 @@
         .player-item.done { color: #2a9d8f; }
         .player-item.offline { color: #ccc; text-decoration: line-through; }
 
-        /* 聊天框：电脑版样式 */
         #chat-container {
             background: white; 
             border-radius: 8px; 
@@ -57,15 +53,14 @@
             padding: 10px;
             display: flex;
             flex-direction: column;
-            height: 300px; /* 固定高度 */
+            height: 300px; 
         }
         #chat-messages { flex: 1; overflow-y: auto; border: 1px solid #eee; margin-bottom: 10px; padding: 5px; text-align: left; background: #f9f9f9; border-radius: 6px; font-size: 14px; }
         .chat-line { margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;}
         .chat-line .name { font-weight: bold; color: #457b9d; }
         .chat-controls { display: flex; gap: 5px; }
-        #chat-input { flex-grow: 1; width: 50%; } /* width为了防止flex压缩 */
+        #chat-input { flex-grow: 1; width: 50%; } 
 
-        /* 顶部栏 */
         .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .theme-box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; position: relative; }
         #theme-display { font-size: 24px; font-weight: bold; color: var(--primary); margin: 10px 0; word-wrap: break-word; }
@@ -76,8 +71,8 @@
         .table-area { min-height: 220px; background: #e9ecef; border-radius: 12px; padding: 20px; border: 2px dashed #cbd5e1; position: relative; }
         #card-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
         
-        .game-card { width: 100px; height: 140px; perspective: 1000px; position: relative; touch-action: none; } /* 默认无grab手势 */
-        .game-card.can-drag { cursor: grab; } /* 只有能拖的时候才显示手势 */
+        .game-card { width: 100px; height: 140px; perspective: 1000px; position: relative; touch-action: none; } 
+        .game-card.can-drag { cursor: grab; }
         .game-card.can-drag:active { cursor: grabbing; }
         .game-card.dragging { opacity: 0.5; }
         .card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.8s; transform-style: preserve-3d; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
@@ -98,15 +93,43 @@
 
         #spectator-overlay { padding: 20px; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 8px; margin-bottom: 20px; display: none; }
 
-        /* 移动端适配 */
+        /* --- 新增：Toast 提示框样式 --- */
+        #toast-notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: rgba(42, 157, 143, 0.95); /* Greenish */
+            color: white;
+            padding: 12px 24px;
+            border-radius: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 2000;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            pointer-events: none; /* 隐形时不可点击 */
+            font-weight: bold;
+            font-size: 16px;
+        }
+        #toast-notification.show {
+            opacity: 1;
+        }
+
+        /* 标题样式微调，防止移动端太拥挤 */
+        h1.main-title {
+            color: #e63946;
+            margin-bottom: 20px;
+            font-size: 24px; /* 移动端默认小一点 */
+            line-height: 1.4;
+        }
+
         @media(max-width: 600px) {
-            body { padding-bottom: 220px; /* 给底部聊天框留位 */ }
-            .game-layout { flex-direction: column; } /* 侧边栏变到上方 */
+            body { padding-bottom: 220px; }
+            .game-layout { flex-direction: column; } 
             .sidebar { width: 100%; gap: 10px; }
-            .player-box { max-height: 100px; /* 手机上玩家列表短一点 */ }
+            .player-box { max-height: 100px; }
             .player-item { display: inline-block; margin-right: 10px; }
             
-            /* 手机端聊天框强制吸底 */
             #chat-container { 
                 position: fixed; 
                 bottom: 0; left: 0; right: 0; 
@@ -119,12 +142,18 @@
 
             .game-card { width: 80px; height: 110px; }
             .card-front .card-desc { font-size: 12px; }
+            h1.main-title { font-size: 20px; } /* 极窄屏幕更小 */
+        }
+        @media(min-width: 601px) {
+            h1.main-title { font-size: 32px; } /* 电脑端大一点 */
         }
     </style>
 </head>
 <body>
+    <div id="toast-notification">本轮游戏主题已更新！</div>
+
     <div id="login-screen" class="container">
-        <h1>ito Online</h1>
+        <h1 class="main-title">大三索整活俱乐部之系/命悬一线/ito</h1>
         <div style="background: white; padding: 30px; border-radius: 12px;">
             <p>请输入昵称加入游戏</p>
             <input type="text" id="username" placeholder="你的昵称" maxlength="10">
@@ -176,7 +205,7 @@
                     <div id="my-number" class="card-number">?</div>
                     
                     <div class="desc-input-group" id="input-group">
-                        <input type="text" id="my-desc-input" placeholder="输入描述 (如: 苹果)" maxlength="15">
+                        <input type="text" id="my-desc-input" placeholder="输入描述 (如: 苹果)，最多20字" maxlength="20">
                         <button class="btn btn-green" onclick="confirmDesc()">确定</button>
                     </div>
                     <div id="desc-display-group" class="hidden" style="margin-top:10px;">
@@ -222,6 +251,7 @@
         let activePlayerCount = 0; 
         let tableCardCount = 0; 
         let sortableInstance = null;
+        let toastTimeout = null;
 
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === 'visible') {
@@ -278,7 +308,6 @@
             
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('game-screen').classList.remove('hidden');
-            // 聊天框不再单独 remove hidden，因为它现在在 sidebar 里默认显示
             document.getElementById('my-name-display').textContent = player.name;
             document.getElementById('theme-display').textContent = data.gameConfig.theme;
 
@@ -310,7 +339,7 @@
                 div.className = 'player-item';
                 if (p.uid === myUid) div.classList.add('is-me');
                 if (p.isPlayed) div.classList.add('done');
-                if (!p.online) div.classList.add('offline'); // 显示离线状态
+                if (!p.online) div.classList.add('offline'); 
                 
                 let statusText = p.isSpectator ? " (旁观)" : (p.isPlayed ? " ✅" : "");
                 if (!p.online) statusText += " (离线)";
@@ -321,7 +350,11 @@
             updateGameButtons(); 
         });
 
-        socket.on('updateTheme', (t) => { document.getElementById('theme-display').textContent = t; });
+        // 修改点1：收到主题更新时，弹出 Toast
+        socket.on('updateTheme', (t) => { 
+            document.getElementById('theme-display').textContent = t;
+            showToast(); // 触发提示
+        });
 
         socket.on('gameStarted', (data) => {
             currentStatus = 'playing';
@@ -384,6 +417,19 @@
 
         socket.on('chatMessage', (msg) => { appendChat(msg); });
 
+        // --- 新增：Toast 显示逻辑 ---
+        function showToast() {
+            const toast = document.getElementById('toast-notification');
+            toast.classList.add('show');
+            
+            // 清除之前的定时器（防止快速切换主题导致提前消失）
+            if (toastTimeout) clearTimeout(toastTimeout);
+            
+            toastTimeout = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000); // 3秒后淡出
+        }
+
         function toggleSpectatorMode(isSpec) {
             const overlay = document.getElementById('spectator-overlay');
             const handArea = document.getElementById('my-hand-area');
@@ -402,14 +448,9 @@
                 themeBtn.disabled = false;
                 themeInput.disabled = false;
             }
-            // 模式改变后重新渲染桌面，以更新拖拽权限
             const list = document.getElementById('card-list');
-            if (list) {
-                // 这里调用不到 cards 数据，但可以通过 updateTable 触发，
-                // 或者简单地重新设置 sortable 状态
-                if (sortableInstance) {
-                    sortableInstance.option("disabled", isSpec || currentStatus === 'revealed');
-                }
+            if (list && sortableInstance) {
+                sortableInstance.option("disabled", isSpec || currentStatus === 'revealed');
             }
         }
 
@@ -427,7 +468,7 @@
                 btnMain.className = "btn btn-green";
             }
 
-            if (currentStatus === 'playing' && tableCardCount > 0 && tableCardCount === activePlayerCount) {
+            if (currentStatus === 'playing' && tableCardCount > 0 && tableCardCount >= activePlayerCount) {
                 btnReveal.disabled = false;
             } else {
                 btnReveal.disabled = true;
@@ -445,7 +486,7 @@
         }
 
         function tryRevealCards() {
-            if (tableCardCount !== activePlayerCount) return;
+            if (tableCardCount < activePlayerCount) return;
             socket.emit('revealCards');
         }
 
@@ -536,7 +577,6 @@
                 const el = document.createElement('div');
                 el.className = `game-card ${isRevealed ? 'flipped' : ''}`;
                 
-                // 视觉上增加手势提示
                 if (!isRevealed && !isSpectator) {
                     el.classList.add('can-drag');
                 }
@@ -561,14 +601,12 @@
                 list.appendChild(el);
             });
 
-            // 拖拽初始化
-            // 核心修复：增加 !isSpectator 判断
             if (!isRevealed) {
                 if (!sortableInstance) {
                     sortableInstance = new Sortable(list, {
                         animation: 150,
                         ghostClass: 'dragging',
-                        disabled: isSpectator, // 初始禁用状态
+                        disabled: isSpectator, 
                         onEnd: function (evt) {
                             const newOrder = [];
                             const items = list.querySelectorAll('.game-card');
@@ -577,7 +615,6 @@
                         }
                     });
                 } else {
-                    // 更新现有实例的禁用状态
                     sortableInstance.option("disabled", isSpectator);
                 }
             } else {
