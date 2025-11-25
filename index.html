@@ -82,6 +82,12 @@
         .card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.8s; transform-style: preserve-3d; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
         .game-card.flipped .card-inner { transform: rotateY(180deg); }
         .game-card.error .card-back { border: 4px solid #e63946; background: #fff0f0; }
+        .game-card.is-mine .card-back,
+        .game-card.is-mine .card-front {
+        border: 3px solid #ffca3a; /* 金黄色边框 */
+        box-shadow: 0 0 15px rgba(255, 202, 58, 0.6); /* 发光效果 */
+        z-index: 10; /* 稍微浮起 */
+        }
 
         .card-front, .card-back { position: absolute; width: 100%; height: 100%; -webkit-backface-visibility: hidden; backface-visibility: hidden; display: flex; flex-direction: column; justify-content: center; align-items: center; border-radius: 8px; padding: 5px; box-sizing: border-box; word-break: break-all; }
         .card-front { background: var(--primary); color: white; }
@@ -593,7 +599,7 @@
 
         function handleEmergencyReset() {
             if (isSpectator) {
-                showPrompt("请输入管理员密码 (admin) 以强制重置本局：", (password) => {
+                showPrompt("请输入管理员密码以强制重置本局：", (password) => {
                     if (password) {
                         socket.emit('emergencyReset', password);
                     }
@@ -718,6 +724,12 @@
             cards.forEach((c, index) => {
                 const el = document.createElement('div');
                 el.className = `game-card ${isRevealed ? 'flipped' : ''}`;
+
+                // --- 修改开始：添加高亮类名 ---
+                if (c.uid === myUid) {
+                el.classList.add('is-mine'); // 新增这一行
+                }
+                // --- 修改结束 ---
                 
                 if (!isRevealed && !isSpectator) {
                     el.classList.add('can-drag');
