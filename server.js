@@ -1,7 +1,6 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
-// --- 引入外部主题文件 ---
 const PRESET_THEMES = require('./themes.js');
 
 const app = express();
@@ -54,6 +53,25 @@ function resetGameData() {
     };
 }
 
+// 辅助函数：发牌逻辑
+function dealCardsToPlayers() {
+    let numbers = Array.from({length: 100}, (_, i) => i + 1);
+    numbers.sort(() => Math.random() - 0.5);
+
+    for (let uid in players) {
+        const p = players[uid];
+        // 只有当是正规玩家、在线、且当前没有牌时，才发牌
+        if (!p.isSpectator && p.online && p.card === null) {
+            p.card = numbers.pop();
+            p.desc = ""; // 重置描述
+            const socketId = p.socketId;
+            if (socketId) {
+                io.to(socketId).emit('yourCard', { number: p.card, desc: "" });
+            }
+        }
+    }
+}
+
 io.on('connection', (socket) => {
     if (autoResetTimer) {
         clearTimeout(autoResetTimer);
@@ -101,43 +119,65 @@ io.on('connection', (socket) => {
         io.to('gameRoom').emit('updatePlayerList', Object.values(players));
     });
 
+    // --- 修改：设置题目时才发牌 ---
     socket.on('updateTheme', (theme) => {
+        // 只有在游戏进行中才允许设置
+        if (gameConfig.status !== 'playing' && gameConfig.status !== 'waiting') return;
+
+        // 如果已经有牌打出去了，禁止修改题目 (虽然前端做了限制，后端也最好校验)
+        if (tableCards.length > 0) return;
+
         gameConfig.theme = theme;
         io.to('gameRoom').emit('updateTheme', theme);
+
+        // 如果游戏正在进行中，尝试发牌
+        if (gameConfig.status === 'playing') {
+            dealCardsToPlayers();
+        }
     });
 
-    // --- 随机主题请求 ---
+    // --- 修改：随机题目逻辑同上 ---
     socket.on('requestRandomTheme', () => {
+        if (gameConfig.status !== 'playing' && gameConfig.status !== 'waiting') return;
+        if (tableCards.length > 0) return;
+
         const randomIndex = Math.floor(Math.random() * PRESET_THEMES.length);
         const rawTheme = PRESET_THEMES[randomIndex];
         const formattedTheme = `随机主题#${randomIndex + 1}：${rawTheme}`;
         
         gameConfig.theme = formattedTheme;
         io.to('gameRoom').emit('updateTheme', formattedTheme);
+
+        if (gameConfig.status === 'playing') {
+            dealCardsToPlayers();
+        }
     });
 
+    // --- 修改：开始游戏不再发牌，只重置状态 ---
     socket.on('startGame', (mode) => {
         tableCards = []; 
         gameConfig.status = 'playing'; 
         gameConfig.mode = mode || 'normal';
-        
-        let numbers = Array.from({length: 100}, (_, i) => i + 1);
-        numbers.sort(() => Math.random() - 0.5);
+        gameConfig.theme = "请设置主题以开始发牌..."; // 提示语
 
+        io.to('gameRoom').emit('updateTheme', gameConfig.theme);
+        
         io.to('gameRoom').emit('gameStarted', { 
             activePlayerCount: getActivePlayerCount(),
             mode: gameConfig.mode
         });
 
+        // 重置所有人的手牌为 null
         for (let uid in players) {
             players[uid].isSpectator = false; 
-            players[uid].card = numbers.pop();
+            players[uid].card = null; // 清空手牌
             players[uid].desc = "";     
             players[uid].isPlayed = false;
             
             const socketId = players[uid].socketId;
             if (socketId && players[uid].online) {
-                io.to(socketId).emit('yourCard', { number: players[uid].card, desc: "" });
+                // 发送空牌给前端，清空界面
+                io.to(socketId).emit('yourCard', { number: null, desc: "" });
             }
         }
 
@@ -234,15 +274,12 @@ io.on('connection', (socket) => {
             isSuccess: isSuccess,
             failedIndices: failedIndices
         });
-
-        // --- 修改开始：游戏结束时，全员转正 ---
-        for (let uid in players) {
-            players[uid].isSpectator = false; // 所有人取消旁观者身份
-        }
-        // 广播最新的玩家列表（这将触发前端更新UI，解锁开始按钮）
-        io.to('gameRoom').emit('updatePlayerList', Object.values(players));
-        // --- 修改结束 ---
         
+        // 游戏结束，全员转正
+        for (let uid in players) {
+            players[uid].isSpectator = false; 
+        }
+        io.to('gameRoom').emit('updatePlayerList', Object.values(players));
         io.to('gameRoom').emit('gameEnded');
     });
 
@@ -285,5 +322,3 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
-
-
