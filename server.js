@@ -18,6 +18,7 @@ let chatHistory = [];
 let gameConfig = {
     theme: "等待设置题目...",
     status: "waiting", 
+    mode: "normal" // 新增：预留模式字段
 };
 
 let autoResetTimer = null;
@@ -35,19 +36,20 @@ function getPublicTableData() {
     }
 }
 
-// --- 核心修复：只统计在线的非旁观者 ---
 function getActivePlayerCount() {
     return Object.values(players).filter(p => !p.isSpectator && p.online).length;
 }
 
+// 重置游戏数据 (通用函数)
 function resetGameData() {
-    console.log("所有玩家已退出，重置游戏数据...");
+    console.log("执行全局重置...");
     players = {};
     tableCards = [];
     chatHistory = [];
     gameConfig = {
         theme: "等待设置题目...",
         status: "waiting",
+        mode: "normal"
     };
 }
 
@@ -103,18 +105,21 @@ io.on('connection', (socket) => {
         io.to('gameRoom').emit('updateTheme', theme);
     });
 
-    socket.on('startGame', (isRestart) => {
+    // 开始游戏 (支持模式选择，目前只用normal)
+    socket.on('startGame', (mode) => {
         tableCards = []; 
         gameConfig.status = 'playing'; 
+        gameConfig.mode = mode || 'normal';
         
         let numbers = Array.from({length: 100}, (_, i) => i + 1);
         numbers.sort(() => Math.random() - 0.5);
 
-        io.to('gameRoom').emit('gameStarted', { activePlayerCount: getActivePlayerCount() });
+        io.to('gameRoom').emit('gameStarted', { 
+            activePlayerCount: getActivePlayerCount(),
+            mode: gameConfig.mode
+        });
 
         for (let uid in players) {
-            // 注意：即使离线的人，这里也会被重置状态，但不会被计入 getActivePlayerCount
-            // 等他们上线时，依然持有这张牌
             players[uid].isSpectator = false; 
             players[uid].card = numbers.pop();
             players[uid].desc = "";     
@@ -128,6 +133,13 @@ io.on('connection', (socket) => {
 
         io.to('gameRoom').emit('updateTable', getPublicTableData()); 
         io.to('gameRoom').emit('updatePlayerList', Object.values(players));
+    });
+
+    // --- 新增：紧急重置 ---
+    socket.on('emergencyReset', () => {
+        resetGameData();
+        // 广播一个强制刷新/重置的信号
+        io.to('gameRoom').emit('forceReset');
     });
 
     socket.on('updateDesc', ({ uid, desc }) => {
@@ -179,7 +191,6 @@ io.on('connection', (socket) => {
 
     socket.on('revealCards', () => {
         const activeCount = getActivePlayerCount();
-        // 允许开牌的条件：桌上牌数 >= 在线活跃人数
         if (tableCards.length < activeCount || activeCount === 0) return;
 
         gameConfig.status = 'revealed';
