@@ -36,6 +36,7 @@ function getPublicTableData() {
 }
 
 function getActivePlayerCount() {
+    // 活跃玩家 = 不是旁观者
     return Object.values(players).filter(p => !p.isSpectator).length;
 }
 
@@ -51,6 +52,7 @@ function resetGameData() {
 }
 
 io.on('connection', (socket) => {
+    // 如果有人连上来，取消自动清空倒计时
     if (autoResetTimer) {
         clearTimeout(autoResetTimer);
         autoResetTimer = null;
@@ -58,16 +60,22 @@ io.on('connection', (socket) => {
 
     socket.on('login', ({ uid, name }) => {
         let isNewUser = !players[uid];
-        let isSpectator = false;
-
-        if (isNewUser && gameConfig.status === 'playing') {
-            isSpectator = true;
-        } 
         
+        // 1. 如果是老玩家重连
         if (players[uid]) {
             players[uid].socketId = socket.id;
             players[uid].name = name || players[uid].name;
-        } else {
+            players[uid].online = true; // 标记为在线
+            // 注意：这里绝对不修改 players[uid].isSpectator，保持之前的状态
+        } 
+        // 2. 如果是真正的新玩家
+        else {
+            let isSpectator = false;
+            // 只有新加入的人，在游戏进行中时，才被迫成为旁观者
+            if (gameConfig.status === 'playing') {
+                isSpectator = true;
+            }
+
             players[uid] = {
                 uid: uid,
                 name: name || "无名氏",
@@ -75,6 +83,7 @@ io.on('connection', (socket) => {
                 desc: "",
                 isPlayed: false,
                 isSpectator: isSpectator,
+                online: true,
                 socketId: socket.id
             };
         }
@@ -82,7 +91,6 @@ io.on('connection', (socket) => {
         socket.join('gameRoom');
         
         const now = Date.now();
-        // 过滤5小时内的消息
         chatHistory = chatHistory.filter(msg => (now - msg.timestamp) < 5 * 60 * 60 * 1000);
 
         socket.emit('loginSuccess', {
@@ -101,7 +109,6 @@ io.on('connection', (socket) => {
         io.to('gameRoom').emit('updateTheme', theme);
     });
 
-    // --- 核心修复位置 ---
     socket.on('startGame', (isRestart) => {
         tableCards = []; 
         gameConfig.status = 'playing'; 
@@ -109,18 +116,18 @@ io.on('connection', (socket) => {
         let numbers = Array.from({length: 100}, (_, i) => i + 1);
         numbers.sort(() => Math.random() - 0.5);
 
-        // 1. 先广播游戏开始 (让前端重置界面，清空旧数据)
+        // 先广播开始
         io.to('gameRoom').emit('gameStarted', { activePlayerCount: getActivePlayerCount() });
 
-        // 2. 然后再发新的手牌 (前端收到后会写入 myCurrentNumber)
         for (let uid in players) {
-            players[uid].isSpectator = false;
+            // 只要在房间里的人，开始新游戏时都变成正式玩家
+            players[uid].isSpectator = false; 
             players[uid].card = numbers.pop();
             players[uid].desc = "";     
             players[uid].isPlayed = false;
             
             const socketId = players[uid].socketId;
-            if (socketId) {
+            if (socketId && players[uid].online) {
                 io.to(socketId).emit('yourCard', { number: players[uid].card, desc: "" });
             }
         }
@@ -216,15 +223,16 @@ io.on('connection', (socket) => {
     });
 
     socket.on('disconnect', () => {
+        // --- 核心修复：不删除玩家，只标记离线 ---
         let disconnectedUid = null;
         for (let uid in players) {
             if (players[uid].socketId === socket.id) {
-                disconnectedUid = uid;
-                delete players[uid]; 
+                players[uid].online = false; // 标记离线
                 break;
             }
         }
-
+        
+        // 广播更新（前端可以把离线玩家变灰）
         io.to('gameRoom').emit('updatePlayerList', Object.values(players));
 
         const room = io.sockets.adapter.rooms.get('gameRoom');
