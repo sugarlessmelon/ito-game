@@ -1,6 +1,8 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
+// --- 引入外部主题文件 ---
+const PRESET_THEMES = require('./themes.js');
 
 const app = express();
 const server = http.createServer(app);
@@ -18,7 +20,7 @@ let chatHistory = [];
 let gameConfig = {
     theme: "等待设置题目...",
     status: "waiting", 
-    mode: "normal" // 新增：预留模式字段
+    mode: "normal" 
 };
 
 let autoResetTimer = null;
@@ -40,7 +42,6 @@ function getActivePlayerCount() {
     return Object.values(players).filter(p => !p.isSpectator && p.online).length;
 }
 
-// 重置游戏数据 (通用函数)
 function resetGameData() {
     console.log("执行全局重置...");
     players = {};
@@ -105,7 +106,16 @@ io.on('connection', (socket) => {
         io.to('gameRoom').emit('updateTheme', theme);
     });
 
-    // 开始游戏 (支持模式选择，目前只用normal)
+    // --- 随机主题请求 ---
+    socket.on('requestRandomTheme', () => {
+        const randomIndex = Math.floor(Math.random() * PRESET_THEMES.length);
+        const rawTheme = PRESET_THEMES[randomIndex];
+        const formattedTheme = `随机主题#${randomIndex + 1}：${rawTheme}`;
+        
+        gameConfig.theme = formattedTheme;
+        io.to('gameRoom').emit('updateTheme', formattedTheme);
+    });
+
     socket.on('startGame', (mode) => {
         tableCards = []; 
         gameConfig.status = 'playing'; 
@@ -135,11 +145,25 @@ io.on('connection', (socket) => {
         io.to('gameRoom').emit('updatePlayerList', Object.values(players));
     });
 
-    // --- 新增：紧急重置 ---
-    socket.on('emergencyReset', () => {
-        resetGameData();
-        // 广播一个强制刷新/重置的信号
-        io.to('gameRoom').emit('forceReset');
+    socket.on('emergencyReset', (password) => {
+        let requestPlayer = null;
+        for(let uid in players) {
+            if (players[uid].socketId === socket.id) {
+                requestPlayer = players[uid];
+                break;
+            }
+        }
+
+        if (requestPlayer) {
+            if (requestPlayer.isSpectator) {
+                if (password !== 'admin') {
+                    socket.emit('errorMessage', '管理员密码错误，无法重置。');
+                    return;
+                }
+            }
+            resetGameData();
+            io.to('gameRoom').emit('forceReset');
+        }
     });
 
     socket.on('updateDesc', ({ uid, desc }) => {
