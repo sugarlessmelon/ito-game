@@ -6,7 +6,7 @@
     <title>大三索整活俱乐部之系/命悬一线/ito</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
-        :root { --primary: #1d3557; --accent: #e63946; --bg: #f0f2f5; --card-bg: #fff; }
+        :root { --primary: #1d3557; --accent: #e63946; --bg: #f0f2f5; --card-bg: #fff; --line-color: #a8dadc; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); text-align: center; margin: 0; padding-bottom: 20px; }
         .container { max-width: 900px; margin: 0 auto; padding: 10px; }
         .hidden { display: none !important; }
@@ -18,58 +18,65 @@
         .btn:disabled { opacity: 0.5; cursor: not-allowed; background: #999; }
         input { padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; }
 
+        /* --- 自定义模态框样式 --- */
+        #modal-overlay {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 3000;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        }
+        #modal-overlay.show { opacity: 1; pointer-events: auto; }
+        .modal-box {
+            background: white; width: 80%; max-width: 400px;
+            padding: 20px; border-radius: 12px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transform: scale(0.9); transition: transform 0.3s;
+        }
+        #modal-overlay.show .modal-box { transform: scale(1); }
+        .modal-title { font-size: 20px; font-weight: bold; color: var(--primary); margin-bottom: 10px; }
+        .modal-body { font-size: 16px; color: #333; margin-bottom: 20px; line-height: 1.5; }
+        .modal-btns { display: flex; justify-content: flex-end; gap: 10px; }
+
+        /* --- 布局样式 --- */
         .game-layout { display: flex; gap: 20px; align-items: flex-start; }
         .main-content { flex: 1; width: 100%; }
         
-        .sidebar { 
-            width: 250px; 
-            flex-shrink: 0; 
-            display: flex; 
-            flex-direction: column; 
-            gap: 20px; 
-        }
+        .sidebar { width: 250px; flex-shrink: 0; display: flex; flex-direction: column; gap: 20px; }
 
-        .player-box {
-            background: white; 
-            padding: 10px; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
-            text-align: left; 
-            font-size: 14px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
+        .player-box { background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: left; font-size: 14px; max-height: 400px; overflow-y: auto; }
         .player-box h4 { margin: 0 0 10px 0; color: var(--primary); font-size: 16px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
-        
         .player-item { padding: 5px 0; color: #555; border-bottom: 1px solid #f0f0f0; }
         .player-item.is-me { color: var(--accent); font-weight: bold; }
         .player-item.done { color: #2a9d8f; }
         .player-item.offline { color: #ccc; text-decoration: line-through; }
 
-        #chat-container {
-            background: white; 
-            border-radius: 8px; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            height: 300px; 
-        }
+        #chat-container { background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 10px; display: flex; flex-direction: column; height: 300px; }
         #chat-messages { flex: 1; overflow-y: auto; border: 1px solid #eee; margin-bottom: 10px; padding: 5px; text-align: left; background: #f9f9f9; border-radius: 6px; font-size: 14px; }
         .chat-line { margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;}
         .chat-line .name { font-weight: bold; color: #457b9d; }
         .chat-controls { display: flex; gap: 5px; }
         #chat-input { flex-grow: 1; width: 50%; } 
 
-        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 10px 15px; border-radius: 8px; }
         .theme-box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; position: relative; }
         #theme-display { font-size: 24px; font-weight: bold; color: var(--primary); margin: 10px 0; word-wrap: break-word; }
         
         .my-area { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; transition: 0.3s; }
         .card-number { font-size: 72px; font-weight: 800; color: var(--accent); line-height: 1; margin: 10px 0; }
         
-        .table-area { min-height: 220px; background: #e9ecef; border-radius: 12px; padding: 20px; border: 2px dashed #cbd5e1; position: relative; }
-        #card-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
+        .table-area { min-height: 250px; background: #e9ecef; border-radius: 12px; padding: 20px; border: 2px dashed #cbd5e1; position: relative; }
+        
+        /* --- 装饰线样式 --- */
+        .direction-line {
+            display: flex; justify-content: space-between; align-items: center;
+            margin-bottom: 20px; font-weight: bold; color: #1d3557; opacity: 0.7;
+            border-bottom: 4px dotted #a8dadc;
+            padding-bottom: 5px;
+        }
+        .direction-line span { font-size: 14px; background: #e9ecef; padding: 0 10px; transform: translateY(14px); }
+
+        #card-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; }
         
         .game-card { width: 100px; height: 140px; perspective: 1000px; position: relative; touch-action: none; } 
         .game-card.can-drag { cursor: grab; }
@@ -94,32 +101,30 @@
         #spectator-overlay { padding: 20px; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 8px; margin-bottom: 20px; display: none; }
 
         #toast-notification {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background-color: rgba(42, 157, 143, 0.95);
-            color: white;
-            padding: 12px 24px;
-            border-radius: 30px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-            z-index: 2000;
-            opacity: 0;
-            transition: opacity 0.5s ease;
-            pointer-events: none;
-            font-weight: bold;
-            font-size: 16px;
+            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+            background-color: rgba(42, 157, 143, 0.95); color: white;
+            padding: 12px 24px; border-radius: 30px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 2000;
+            opacity: 0; transition: opacity 0.5s ease; pointer-events: none;
+            font-weight: bold; font-size: 16px;
         }
-        #toast-notification.show {
-            opacity: 1;
+        #toast-notification.show { opacity: 1; }
+
+        /* --- 模式选择器 --- */
+        .mode-selector {
+            display: flex; justify-content: center; gap: 10px; margin-bottom: 15px;
+        }
+        .mode-item {
+            padding: 8px 12px; border: 1px solid #ccc; border-radius: 20px; font-size: 14px; cursor: pointer; background: #f9f9f9; color: #666;
+        }
+        .mode-item.selected {
+            background: #457b9d; color: white; border-color: #457b9d; font-weight: bold;
+        }
+        .mode-item.disabled {
+            opacity: 0.5; cursor: not-allowed; background: #eee;
         }
 
-        h1.main-title {
-            color: #e63946;
-            margin-bottom: 20px;
-            font-size: 24px;
-            line-height: 1.4;
-        }
+        h1.main-title { color: #e63946; margin-bottom: 20px; font-size: 24px; line-height: 1.4; }
 
         @media(max-width: 600px) {
             body { padding-bottom: 220px; }
@@ -129,12 +134,8 @@
             .player-item { display: inline-block; margin-right: 10px; }
             
             #chat-container { 
-                position: fixed; 
-                bottom: 0; left: 0; right: 0; 
-                z-index: 99; 
-                height: auto;
-                border-radius: 12px 12px 0 0;
-                box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+                position: fixed; bottom: 0; left: 0; right: 0; z-index: 99; height: auto;
+                border-radius: 12px 12px 0 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
             }
             #chat-messages { height: 120px; }
 
@@ -148,6 +149,17 @@
     </style>
 </head>
 <body>
+    <div id="modal-overlay">
+        <div class="modal-box">
+            <div id="modal-title" class="modal-title">提示</div>
+            <div id="modal-body" class="modal-body">内容</div>
+            <div class="modal-btns">
+                <button id="modal-btn-cancel" class="btn btn-gray hidden">取消</button>
+                <button id="modal-btn-confirm" class="btn btn-blue">确定</button>
+            </div>
+        </div>
+    </div>
+
     <div id="toast-notification">本轮游戏主题已更新！</div>
 
     <div id="login-screen" class="container">
@@ -162,8 +174,13 @@
 
     <div id="game-screen" class="container hidden">
         <div class="top-bar">
-            <div style="font-size:14px; color:#666;">用户: <strong id="my-name-display"></strong></div>
-            <button class="btn btn-gray" style="font-size:12px; padding:5px 10px;" onclick="doLogout()">退出登录</button>
+            <div style="text-align:left;">
+                <div style="font-size:14px; color:#666;">用户: <strong id="my-name-display"></strong></div>
+                <div style="font-size:12px; color:#999; margin-top:2px;">
+                    <a href="javascript:doLogout()" style="color:#666;">退出登录</a>
+                </div>
+            </div>
+            <button id="btn-emergency-reset" class="btn btn-red" style="font-size:12px; padding:5px 10px;" onclick="handleEmergencyReset()">⚠ 重置本局</button>
         </div>
 
         <div class="game-layout">
@@ -218,14 +235,25 @@
                 </div>
 
                 <div class="table-area">
+                    <div class="direction-line">
+                        <span>0 (小)</span>
+                        <span>(大) 100</span>
+                    </div>
+
                     <h3>桌面 (所有人可拖动排序)</h3>
                     <div id="card-list"></div>
                     <div id="result-bar"></div>
                 </div>
 
                 <div style="margin-top: 30px; border-top: 1px solid #ddd; padding-top: 20px;">
+                    <div class="mode-selector" id="mode-selector-area">
+                        <div class="mode-item selected" onclick="selectMode('normal')">普通模式</div>
+                        <div class="mode-item disabled">双牌模式</div>
+                        <div class="mode-item disabled">狼人模式</div>
+                    </div>
+
                     <div style="display: flex; justify-content: center; gap: 10px;">
-                        <button id="btn-main-action" class="btn btn-green" onclick="handleMainAction()">开始游戏</button>
+                        <button id="btn-start" class="btn btn-green" onclick="handleStartGame()">开始游戏</button>
                         <button id="btn-reveal" class="btn btn-red" onclick="tryRevealCards()" disabled>👑 开牌结算</button>
                     </div>
                 </div>
@@ -250,6 +278,55 @@
         let tableCardCount = 0; 
         let sortableInstance = null;
         let toastTimeout = null;
+        let selectedMode = 'normal';
+        let resetClickCount = 0; // 紧急重置点击计数
+
+        // --- 模态框逻辑 ---
+        function showModal(title, body, onConfirm, onCancel) {
+            const overlay = document.getElementById('modal-overlay');
+            const t = document.getElementById('modal-title');
+            const b = document.getElementById('modal-body');
+            const btnOk = document.getElementById('modal-btn-confirm');
+            const btnCancel = document.getElementById('modal-btn-cancel');
+
+            t.textContent = title;
+            b.innerHTML = body; // 允许HTML内容
+
+            // 清除旧事件
+            btnOk.onclick = null;
+            btnCancel.onclick = null;
+
+            if (onCancel) {
+                btnCancel.classList.remove('hidden');
+                btnCancel.onclick = () => {
+                    closeModal();
+                    onCancel();
+                };
+            } else {
+                btnCancel.classList.add('hidden');
+            }
+
+            btnOk.onclick = () => {
+                closeModal();
+                if (onConfirm) onConfirm();
+            };
+
+            overlay.classList.add('show');
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('show');
+        }
+
+        function customAlert(msg) {
+            showModal("提示", msg, null, null);
+        }
+
+        function customConfirm(msg, callback) {
+            showModal("确认", msg, callback, () => {}); // 空函数表示点击取消无操作
+        }
+
+        // --- 核心逻辑 ---
 
         document.addEventListener("visibilitychange", () => {
             if (document.visibilityState === 'visible') {
@@ -280,7 +357,7 @@
 
         function initLogin() {
             const nameInput = document.getElementById('username').value.trim();
-            if (!nameInput) return alert("请输入名字");
+            if (!nameInput) return customAlert("请输入名字");
             
             if (!myUid) {
                 myUid = generateUUID();
@@ -327,11 +404,9 @@
             updateGameButtons();
         });
 
-        // 修改点：前端人数统计同步修复
         socket.on('updatePlayerList', (list) => {
             const container = document.getElementById('player-list-container');
             container.innerHTML = '';
-            // 核心修复：这里也需要 && p.online
             activePlayerCount = list.filter(p => !p.isSpectator && p.online).length;
             
             list.forEach(p => {
@@ -367,6 +442,12 @@
             
             resetMyUI();
             updateGameButtons();
+        });
+        
+        // 强制重置
+        socket.on('forceReset', () => {
+             // 刷新页面是最干净的重置方式
+             location.reload();
         });
 
         socket.on('yourCard', (data) => { 
@@ -436,7 +517,8 @@
                 handArea.classList.add('hidden');
                 themeBtn.disabled = true;
                 themeInput.disabled = true;
-                document.getElementById('btn-main-action').disabled = true;
+                // 旁观者不能点击任何主按钮
+                document.getElementById('btn-start').disabled = true;
                 document.getElementById('btn-reveal').disabled = true;
             } else {
                 overlay.style.display = 'none';
@@ -449,20 +531,34 @@
             }
         }
 
+        // 模式选择
+        function selectMode(mode) {
+            if (mode !== 'normal') return; // 暂未开放
+            selectedMode = mode;
+            // UI 更新
+            const items = document.querySelectorAll('.mode-item');
+            items.forEach(el => el.classList.remove('selected'));
+            items[0].classList.add('selected'); // 暂时只hardcode第一个
+        }
+
+        // 按钮状态机
         function updateGameButtons() {
             if (isSpectator) return; 
 
-            const btnMain = document.getElementById('btn-main-action');
+            const btnStart = document.getElementById('btn-start');
             const btnReveal = document.getElementById('btn-reveal');
+            const modeArea = document.getElementById('mode-selector-area');
 
             if (currentStatus === 'playing') {
-                btnMain.textContent = "重新开始本局";
-                btnMain.className = "btn btn-gray"; 
+                btnStart.classList.add('hidden'); // 游戏中隐藏开始按钮
+                modeArea.classList.add('hidden'); // 游戏中隐藏模式选择
             } else {
-                btnMain.textContent = "开始游戏";
-                btnMain.className = "btn btn-green";
+                btnStart.classList.remove('hidden');
+                btnStart.textContent = "开始游戏";
+                modeArea.classList.remove('hidden');
             }
 
+            // 开牌逻辑：桌面牌数 >= 在线活跃人数
             if (currentStatus === 'playing' && tableCardCount > 0 && tableCardCount >= activePlayerCount) {
                 btnReveal.disabled = false;
             } else {
@@ -470,27 +566,41 @@
             }
         }
 
-        function handleMainAction() {
-            if (currentStatus === 'playing') {
-                if (confirm("⚠️ 警告：当前游戏正在进行中。\n确定要中断并重新开始本局吗？")) {
-                    socket.emit('startGame', true);
-                }
+        // 紧急重置逻辑 (需要点击两次)
+        function handleEmergencyReset() {
+            resetClickCount++;
+            if (resetClickCount >= 2) {
+                // 第二次点击，弹出确认框
+                customConfirm("<b style='color:red'>确定要强制重置游戏吗？</b><br>这将清空所有状态、手牌和聊天记录，此操作不可撤销。", () => {
+                    socket.emit('emergencyReset');
+                    resetClickCount = 0;
+                });
             } else {
-                socket.emit('startGame', false);
+                showToast("⚠️ 请再点击一次以确认重置");
+                // 3秒后重置计数，防止误触积累
+                setTimeout(() => resetClickCount = 0, 3000);
             }
+        }
+
+        // 开始游戏逻辑
+        function handleStartGame() {
+            // 这里不需要确认，因为按钮只在等待阶段出现
+            socket.emit('startGame', selectedMode);
         }
 
         function tryRevealCards() {
             if (tableCardCount < activePlayerCount) return;
-            socket.emit('revealCards');
+            customConfirm("确定所有人都出牌完毕，并确认结算吗？", () => {
+                socket.emit('revealCards');
+            });
         }
 
         function trySetTheme() {
             const val = document.getElementById('theme-input').value.trim();
             if (!val) return;
-            if (confirm(`确定要将题目修改为：“${val}” 吗？`)) {
+            customConfirm(`确定要将题目修改为：“${escapeHtml(val)}” 吗？`, () => {
                 socket.emit('updateTheme', val);
-            }
+            });
         }
 
         function sendChat() {
@@ -500,7 +610,7 @@
 
             if (myCurrentNumber !== null) {
                 if (msg.includes(myCurrentNumber.toString())) {
-                    alert(`🚫 禁止发送！消息包含手牌数字 "${myCurrentNumber}"。`);
+                    customAlert(`🚫 禁止发送！消息包含手牌数字 "${myCurrentNumber}"。`);
                     return;
                 }
             }
@@ -519,7 +629,7 @@
 
         function confirmDesc(emit = true) {
             const val = document.getElementById('my-desc-input').value.trim();
-            if (!val) return alert("请输入描述");
+            if (!val) return customAlert("请输入描述");
             const currentDesc = val; 
             
             document.getElementById('input-group').classList.add('hidden');
@@ -531,7 +641,7 @@
         }
 
         function withdrawDesc() {
-            if (isMyCardPlayed) return alert("请先收回卡牌");
+            if (isMyCardPlayed) return customAlert("请先收回卡牌");
             document.getElementById('input-group').classList.remove('hidden');
             document.getElementById('desc-display-group').classList.add('hidden');
             document.getElementById('btn-play').disabled = true;
