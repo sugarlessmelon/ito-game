@@ -7,7 +7,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Sortable/1.15.0/Sortable.min.js"></script>
     <style>
         :root { --primary: #1d3557; --accent: #e63946; --bg: #f0f2f5; --card-bg: #fff; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); text-align: center; margin: 0; padding-bottom: 220px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); text-align: center; margin: 0; padding-bottom: 20px; }
         .container { max-width: 900px; margin: 0 auto; padding: 10px; }
         .hidden { display: none !important; }
         .btn { border: none; padding: 10px 15px; border-radius: 6px; font-size: 16px; cursor: pointer; color: white; transition: 0.2s; margin: 5px; touch-action: manipulation; }
@@ -18,14 +18,54 @@
         .btn:disabled { opacity: 0.5; cursor: not-allowed; background: #999; }
         input { padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; }
 
+        /* 游戏整体布局 */
         .game-layout { display: flex; gap: 20px; align-items: flex-start; }
         .main-content { flex: 1; width: 100%; }
-        .sidebar { width: 120px; background: white; padding: 10px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: left; font-size: 14px; flex-shrink: 0; }
-        .sidebar h4 { margin: 0 0 10px 0; color: var(--primary); font-size: 16px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+        
+        /* 侧边栏：包含玩家列表和聊天框 */
+        .sidebar { 
+            width: 250px; 
+            flex-shrink: 0; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 20px; 
+        }
+
+        /* 玩家列表盒子 */
+        .player-box {
+            background: white; 
+            padding: 10px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+            text-align: left; 
+            font-size: 14px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .player-box h4 { margin: 0 0 10px 0; color: var(--primary); font-size: 16px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+        
         .player-item { padding: 5px 0; color: #555; border-bottom: 1px solid #f0f0f0; }
         .player-item.is-me { color: var(--accent); font-weight: bold; }
         .player-item.done { color: #2a9d8f; }
+        .player-item.offline { color: #ccc; text-decoration: line-through; }
 
+        /* 聊天框：电脑版样式 */
+        #chat-container {
+            background: white; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            height: 300px; /* 固定高度 */
+        }
+        #chat-messages { flex: 1; overflow-y: auto; border: 1px solid #eee; margin-bottom: 10px; padding: 5px; text-align: left; background: #f9f9f9; border-radius: 6px; font-size: 14px; }
+        .chat-line { margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;}
+        .chat-line .name { font-weight: bold; color: #457b9d; }
+        .chat-controls { display: flex; gap: 5px; }
+        #chat-input { flex-grow: 1; width: 50%; } /* width为了防止flex压缩 */
+
+        /* 顶部栏 */
         .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .theme-box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; position: relative; }
         #theme-display { font-size: 24px; font-weight: bold; color: var(--primary); margin: 10px 0; word-wrap: break-word; }
@@ -36,8 +76,9 @@
         .table-area { min-height: 220px; background: #e9ecef; border-radius: 12px; padding: 20px; border: 2px dashed #cbd5e1; position: relative; }
         #card-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; }
         
-        .game-card { width: 100px; height: 140px; perspective: 1000px; position: relative; cursor: grab; touch-action: none; }
-        .game-card:active { cursor: grabbing; }
+        .game-card { width: 100px; height: 140px; perspective: 1000px; position: relative; touch-action: none; } /* 默认无grab手势 */
+        .game-card.can-drag { cursor: grab; } /* 只有能拖的时候才显示手势 */
+        .game-card.can-drag:active { cursor: grabbing; }
         .game-card.dragging { opacity: 0.5; }
         .card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.8s; transform-style: preserve-3d; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
         .game-card.flipped .card-inner { transform: rotateY(180deg); }
@@ -57,20 +98,27 @@
 
         #spectator-overlay { padding: 20px; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 8px; margin-bottom: 20px; display: none; }
 
-        #chat-container { position: fixed; bottom: 0; left: 0; right: 0; background: white; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); padding: 10px; max-width: 900px; margin: 0 auto; z-index: 99; border-top-left-radius: 12px; border-top-right-radius: 12px; }
-        #chat-messages { height: 120px; overflow-y: auto; border: 1px solid #eee; margin-bottom: 10px; padding: 5px; text-align: left; background: #f9f9f9; border-radius: 6px; font-size: 14px; }
-        .chat-line { margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;}
-        .chat-line .name { font-weight: bold; color: #457b9d; }
-        .chat-controls { display: flex; gap: 5px; }
-        #chat-input { flex-grow: 1; }
-
+        /* 移动端适配 */
         @media(max-width: 600px) {
-            .game-layout { flex-direction: column-reverse; }
-            .sidebar { width: 100%; box-sizing: border-box; text-align: center; }
+            body { padding-bottom: 220px; /* 给底部聊天框留位 */ }
+            .game-layout { flex-direction: column; } /* 侧边栏变到上方 */
+            .sidebar { width: 100%; gap: 10px; }
+            .player-box { max-height: 100px; /* 手机上玩家列表短一点 */ }
             .player-item { display: inline-block; margin-right: 10px; }
+            
+            /* 手机端聊天框强制吸底 */
+            #chat-container { 
+                position: fixed; 
+                bottom: 0; left: 0; right: 0; 
+                z-index: 99; 
+                height: auto;
+                border-radius: 12px 12px 0 0;
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            }
+            #chat-messages { height: 120px; }
+
             .game-card { width: 80px; height: 110px; }
             .card-front .card-desc { font-size: 12px; }
-            body { padding-bottom: 200px; }
         }
     </style>
 </head>
@@ -93,13 +141,25 @@
 
         <div class="game-layout">
             <div class="sidebar">
-                <h4>在线玩家</h4>
-                <div id="player-list-container"></div>
+                <div class="player-box">
+                    <h4>在线玩家</h4>
+                    <div id="player-list-container"></div>
+                </div>
+
+                <div id="chat-container">
+                    <div id="chat-messages">
+                        <div class="chat-line" style="color:#999;">欢迎进入聊天室...</div>
+                    </div>
+                    <div class="chat-controls">
+                        <input type="text" id="chat-input" placeholder="输入消息..." onkeydown="if(event.key==='Enter') sendChat()">
+                        <button class="btn btn-blue" style="padding: 8px 15px; margin:0;" onclick="sendChat()">发送</button>
+                    </div>
+                </div>
             </div>
 
             <div class="main-content">
                 <div id="spectator-overlay">
-                    ⚠ 游戏正在进行中，请等待本局结束后自动加入。<br>目前您只能观看和聊天。
+                    ⚠ 游戏正在进行中，请等待本局结束后自动加入。<br>目前您只能观看和聊天，<b>无法拖动牌</b>。
                 </div>
 
                 <div class="theme-box">
@@ -143,16 +203,6 @@
                     </div>
                 </div>
             </div>
-        </div>
-    </div>
-
-    <div id="chat-container" class="hidden">
-        <div id="chat-messages">
-            <div class="chat-line" style="color:#999;">欢迎进入聊天室...</div>
-        </div>
-        <div class="chat-controls">
-            <input type="text" id="chat-input" placeholder="输入消息..." onkeydown="if(event.key==='Enter') sendChat()">
-            <button class="btn btn-blue" style="padding: 8px 15px; margin:0;" onclick="sendChat()">发送</button>
         </div>
     </div>
 
@@ -228,7 +278,7 @@
             
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('game-screen').classList.remove('hidden');
-            document.getElementById('chat-container').classList.remove('hidden');
+            // 聊天框不再单独 remove hidden，因为它现在在 sidebar 里默认显示
             document.getElementById('my-name-display').textContent = player.name;
             document.getElementById('theme-display').textContent = data.gameConfig.theme;
 
@@ -260,8 +310,11 @@
                 div.className = 'player-item';
                 if (p.uid === myUid) div.classList.add('is-me');
                 if (p.isPlayed) div.classList.add('done');
+                if (!p.online) div.classList.add('offline'); // 显示离线状态
                 
                 let statusText = p.isSpectator ? " (旁观)" : (p.isPlayed ? " ✅" : "");
+                if (!p.online) statusText += " (离线)";
+                
                 div.textContent = p.name + statusText;
                 container.appendChild(div);
             });
@@ -349,6 +402,15 @@
                 themeBtn.disabled = false;
                 themeInput.disabled = false;
             }
+            // 模式改变后重新渲染桌面，以更新拖拽权限
+            const list = document.getElementById('card-list');
+            if (list) {
+                // 这里调用不到 cards 数据，但可以通过 updateTable 触发，
+                // 或者简单地重新设置 sortable 状态
+                if (sortableInstance) {
+                    sortableInstance.option("disabled", isSpec || currentStatus === 'revealed');
+                }
+            }
         }
 
         function updateGameButtons() {
@@ -395,13 +457,11 @@
             }
         }
 
-        // --- 修复确认：聊天与输入检测 ---
         function sendChat() {
             const input = document.getElementById('chat-input');
             const msg = input.value.trim();
             if (!msg) return;
 
-            // 检查逻辑
             if (myCurrentNumber !== null) {
                 if (msg.includes(myCurrentNumber.toString())) {
                     alert(`🚫 禁止发送！消息包含手牌数字 "${myCurrentNumber}"。`);
@@ -475,6 +535,12 @@
             cards.forEach((c, index) => {
                 const el = document.createElement('div');
                 el.className = `game-card ${isRevealed ? 'flipped' : ''}`;
+                
+                // 视觉上增加手势提示
+                if (!isRevealed && !isSpectator) {
+                    el.classList.add('can-drag');
+                }
+
                 if (failedIndices.includes(index)) el.classList.add('error');
                 el.setAttribute('data-uid', c.uid);
 
@@ -495,11 +561,14 @@
                 list.appendChild(el);
             });
 
+            // 拖拽初始化
+            // 核心修复：增加 !isSpectator 判断
             if (!isRevealed) {
                 if (!sortableInstance) {
                     sortableInstance = new Sortable(list, {
                         animation: 150,
                         ghostClass: 'dragging',
+                        disabled: isSpectator, // 初始禁用状态
                         onEnd: function (evt) {
                             const newOrder = [];
                             const items = list.querySelectorAll('.game-card');
@@ -508,7 +577,8 @@
                         }
                     });
                 } else {
-                    sortableInstance.option("disabled", false);
+                    // 更新现有实例的禁用状态
+                    sortableInstance.option("disabled", isSpectator);
                 }
             } else {
                 if (sortableInstance) sortableInstance.option("disabled", true);
