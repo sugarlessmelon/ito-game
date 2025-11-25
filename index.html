@@ -49,12 +49,33 @@
         .player-item.done { color: #2a9d8f; }
         .player-item.offline { color: #ccc; text-decoration: line-through; }
 
-        #chat-container { background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 10px; display: flex; flex-direction: column; height: 300px; }
-        #chat-messages { flex: 1; overflow-y: auto; border: 1px solid #eee; margin-bottom: 10px; padding: 5px; text-align: left; background: #f9f9f9; border-radius: 6px; font-size: 14px; }
+        #chat-container { 
+            background: white; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05); 
+            padding: 10px; 
+            display: flex; 
+            flex-direction: column; 
+            height: 300px; /* 电脑端默认高度 */
+        }
+        #chat-messages { 
+            flex: 1; 
+            overflow-y: auto; 
+            border: 1px solid #eee; 
+            margin-bottom: 10px; 
+            padding: 5px; 
+            text-align: left; 
+            background: #f9f9f9; 
+            border-radius: 6px; 
+            font-size: 14px; 
+        }
         .chat-line { margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;}
         .chat-line .name { font-weight: bold; color: #457b9d; }
         .chat-controls { display: flex; gap: 5px; }
         #chat-input { flex-grow: 1; width: 50%; } 
+
+        /* 聊天框头部 (默认隐藏，手机端显示) */
+        #chat-header { display: none; }
 
         .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 10px 15px; border-radius: 8px; }
         .theme-box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; position: relative; }
@@ -79,7 +100,6 @@
         .game-card.can-drag { cursor: grab; }
         .game-card.can-drag:active { cursor: grabbing; }
         .game-card.dragging { opacity: 0.5; }
-        /* 高亮样式 */
         .game-card.is-mine .card-back, .game-card.is-mine .card-front { border: 3px solid #ffca3a; box-shadow: 0 0 15px rgba(255, 202, 58, 0.6); z-index: 10; }
 
         .card-inner { position: relative; width: 100%; height: 100%; text-align: center; transition: transform 0.8s; transform-style: preserve-3d; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.2); }
@@ -117,6 +137,7 @@
 
         h1.main-title { color: #e63946; margin-bottom: 20px; font-size: 24px; line-height: 1.4; }
 
+        /* --- 移动端适配 (重写聊天框逻辑) --- */
         @media(max-width: 600px) {
             body { padding-bottom: 220px; }
             .game-layout { flex-direction: column; } 
@@ -124,8 +145,54 @@
             .player-box { max-height: 100px; }
             .player-item { display: inline-block; margin-right: 10px; }
             
-            #chat-container { position: fixed; bottom: 0; left: 0; right: 0; z-index: 99; height: auto; border-radius: 12px 12px 0 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); }
-            #chat-messages { height: 120px; }
+            /* 手机端聊天框样式重写 */
+            #chat-container { 
+                position: fixed; 
+                bottom: 0; left: 0; right: 0; 
+                z-index: 99; 
+                height: auto; /* 高度自适应，但也受限 */
+                border-radius: 12px 12px 0 0; 
+                box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+                transition: transform 0.3s ease; /* 平滑过渡 */
+                display: flex;
+                flex-direction: column;
+                padding: 0; /* 移除内边距，交给子元素 */
+            }
+            
+            /* 头部开关栏 */
+            #chat-header {
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                height: 30px;
+                background: #e9ecef;
+                border-radius: 12px 12px 0 0;
+                color: #666;
+                font-size: 12px;
+                cursor: pointer;
+                border-bottom: 1px solid #ddd;
+                flex-shrink: 0;
+            }
+
+            /* 消息区域限制高度 */
+            #chat-messages { 
+                height: 160px; /* 约8行 */
+                margin: 0;
+                border: none;
+                border-radius: 0;
+            }
+            
+            /* 输入框区域 */
+            .chat-controls {
+                padding: 10px;
+                background: white;
+            }
+
+            /* 折叠状态 */
+            #chat-container.collapsed {
+                /* 向下平移，只保留头部30px可见 */
+                transform: translateY(calc(100% - 30px));
+            }
 
             .game-card { width: 80px; height: 110px; }
             .card-front .card-desc { font-size: 12px; }
@@ -178,6 +245,10 @@
                 </div>
 
                 <div id="chat-container">
+                    <div id="chat-header" onclick="toggleChat()">
+                        <span id="chat-toggle-icon">▼ 收起聊天</span>
+                    </div>
+                    
                     <div id="chat-messages">
                         <div class="chat-line" style="color:#999;">欢迎进入聊天室...</div>
                     </div>
@@ -270,6 +341,23 @@
         let resetClickCount = 0; 
         let afkTimer = null;
         const AFK_LIMIT = 5 * 60 * 1000;
+        // --- 新增：聊天折叠状态 ---
+        let isChatCollapsed = false;
+
+        // --- 聊天折叠函数 ---
+        function toggleChat() {
+            const container = document.getElementById('chat-container');
+            const icon = document.getElementById('chat-toggle-icon');
+            isChatCollapsed = !isChatCollapsed;
+            
+            if (isChatCollapsed) {
+                container.classList.add('collapsed');
+                icon.textContent = "▲ 展开聊天";
+            } else {
+                container.classList.remove('collapsed');
+                icon.textContent = "▼ 收起聊天";
+            }
+        }
 
         function showModal(title, body, onConfirm, onCancel, showInput = false) {
             const overlay = document.getElementById('modal-overlay');
@@ -409,7 +497,6 @@
             if (player.card) {
                 myCurrentNumber = player.card;
                 document.getElementById('my-number').textContent = player.card;
-                // 修复：确保区域显示
                 document.getElementById('my-hand-area').classList.remove('hidden');
                 
                 if (player.desc) {
@@ -478,7 +565,6 @@
         });
 
         socket.on('yourCard', (data) => { 
-            // 如果收到 null (开始新游戏时)，隐藏数字
             if (data.number === null) {
                 myCurrentNumber = null;
                 document.getElementById('my-number').textContent = "?";
@@ -559,7 +645,6 @@
                 document.getElementById('btn-reveal').disabled = true;
             } else {
                 overlay.style.display = 'none';
-                // 注意：这里不直接 enable，而是由 updateGameButtons 接管
             }
             const list = document.getElementById('card-list');
             if (list && sortableInstance) {
@@ -582,7 +667,6 @@
             const btnReveal = document.getElementById('btn-reveal');
             const modeArea = document.getElementById('mode-selector-area');
             
-            // 主题控制元素
             const themeBtn = document.getElementById('btn-set-theme');
             const randomBtn = document.getElementById('btn-random-theme');
             const themeInput = document.getElementById('theme-input');
@@ -591,7 +675,6 @@
                 btnStart.classList.add('hidden'); 
                 modeArea.classList.add('hidden'); 
                 
-                // 修改：如果桌上有牌了，禁用主题设置
                 if (tableCardCount > 0) {
                     themeBtn.disabled = true;
                     randomBtn.disabled = true;
@@ -603,7 +686,6 @@
                 }
 
             } else {
-                // 等待或结算状态
                 btnStart.classList.remove('hidden');
                 btnStart.textContent = "开始游戏";
                 modeArea.classList.remove('hidden');
@@ -622,7 +704,6 @@
 
         function handleEmergencyReset() {
             if (isSpectator) {
-                // 修改：提示词更新
                 showPrompt("请输入管理员密码以强制重置本局：", (password) => {
                     if (password) {
                         socket.emit('emergencyReset', password);
@@ -645,7 +726,6 @@
 
         function requestRandomTheme() {
             if (isSpectator) return customAlert("旁观者无法设置主题");
-            // 前端双重校验
             if (currentStatus === 'playing' && tableCardCount > 0) return customAlert("已有牌打出，无法修改主题");
             
             customConfirm("是否确定随机选择一个主题？", () => {
@@ -667,7 +747,6 @@
         function trySetTheme() {
             const val = document.getElementById('theme-input').value.trim();
             if (!val) return;
-            // 前端双重校验
             if (currentStatus === 'playing' && tableCardCount > 0) return customAlert("已有牌打出，无法修改主题");
 
             customConfirm(`确定要将题目修改为：“${escapeHtml(val)}” 吗？`, () => {
