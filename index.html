@@ -445,6 +445,17 @@
         });
 
         socket.on('updatePlayerList', (list) => {
+            // --- 修复开始：同步自己的旁观者状态 ---
+            const me = list.find(p => p.uid === myUid);
+            if (me) {
+                // 如果服务器状态变了（例如游戏结束转正），本地也要更新
+                if (isSpectator !== me.isSpectator) {
+                    isSpectator = me.isSpectator;
+                    toggleSpectatorMode(isSpectator); // 更新遮罩层显示/隐藏
+                }
+            }
+            // --- 修复结束 ---
+            
             const container = document.getElementById('player-list-container');
             container.innerHTML = '';
             activePlayerCount = list.filter(p => !p.isSpectator && p.online).length;
@@ -867,5 +878,3 @@
     </script>
 </body>
 </html>
-
-
