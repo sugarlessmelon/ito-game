@@ -19,6 +19,7 @@
         .btn:disabled { opacity: 0.5; cursor: not-allowed; background: #999; }
         input { padding: 10px; border-radius: 6px; border: 1px solid #ccc; font-size: 16px; }
 
+        /* 模态框 */
         #modal-overlay {
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.5); z-index: 3000;
@@ -38,6 +39,7 @@
         .modal-input { width: 90%; padding: 10px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; }
         .modal-btns { display: flex; justify-content: flex-end; gap: 10px; }
 
+        /* 布局 */
         .game-layout { display: flex; gap: 20px; align-items: flex-start; }
         .main-content { flex: 1; width: 100%; }
         .sidebar { width: 250px; flex-shrink: 0; display: flex; flex-direction: column; gap: 20px; }
@@ -50,41 +52,33 @@
         .player-item.offline { color: #ccc; text-decoration: line-through; }
 
         #chat-container { background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); padding: 10px; display: flex; flex-direction: column; height: 300px; }
-        #chat-messages { flex: 1; overflow-y: auto; border: 1px solid #eee; margin-bottom: 10px; padding: 5px; text-align: left; background: #f9f9f9; border-radius: 6px; font-size: 14px; }
+        #chat-messages { flex: 1; overflow-y: auto; border: 1px solid #eee; margin-bottom: 10px; padding: 5px; text-align: left; background: #f9f9f9; border-radius: 6px; font-size: 14px; margin-top: 0; }
         .chat-line { margin-bottom: 4px; border-bottom: 1px solid #eee; padding-bottom: 2px;}
         .chat-line .name { font-weight: bold; color: #457b9d; }
         .chat-controls { display: flex; gap: 5px; }
         #chat-input { flex-grow: 1; width: 50%; } 
         #chat-header { display: none; } 
 
-        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 10px 15px; border-radius: 8px; }
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; background: white; padding: 10px 15px; border-radius: 8px; position: relative; }
+        
+        /* 身份徽章 (狼人模式用) */
+        #role-badge {
+            display: inline-block; padding: 4px 8px; border-radius: 4px; font-size: 12px; font-weight: bold; color: white; cursor: pointer; margin-left: 10px; user-select: none;
+        }
+        .role-villager { background: #2a9d8f; }
+        .role-wolf { background: #e63946; }
+        .role-hidden { background: #666; } /* 隐藏状态 */
+
         .theme-box { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; position: relative; }
         #theme-display { font-size: 24px; font-weight: bold; color: var(--primary); margin: 10px 0; word-wrap: break-word; }
         #theme-controls { display: flex; justify-content: center; gap: 5px; flex-wrap: wrap; }
         
-        /* --- 手牌区域 (Grid布局以支持双牌) --- */
-        .my-area { 
-            background: white; padding: 20px; border-radius: 12px; 
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; 
-            transition: 0.3s; 
-            /* 修改为 Flex 布局，方便放多张牌 */
-            display: flex; flex-wrap: wrap; justify-content: center; gap: 20px;
-        }
-        .hand-card-item {
-            border: 1px solid #eee;
-            border-radius: 8px;
-            padding: 15px;
-            background: #f9f9f9;
-            width: 100%; max-width: 250px; /* 限制每张卡牌输入区的宽度 */
-        }
+        .my-area { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); margin-bottom: 20px; transition: 0.3s; display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; }
+        .hand-card-item { border: 1px solid #eee; border-radius: 8px; padding: 15px; background: #f9f9f9; width: 100%; max-width: 250px; }
         .card-number { font-size: 72px; font-weight: 800; color: var(--accent); line-height: 1; margin: 10px 0; }
         
         .table-area { min-height: 250px; background: #e9ecef; border-radius: 12px; padding: 20px; border: 2px dashed #cbd5e1; position: relative; }
-        .direction-line {
-            display: flex; justify-content: space-between; align-items: center;
-            margin-bottom: 20px; font-weight: bold; color: #1d3557; opacity: 0.7;
-            border-bottom: 4px dotted #a8dadc; padding-bottom: 5px;
-        }
+        .direction-line { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; font-weight: bold; color: #1d3557; opacity: 0.7; border-bottom: 4px dotted #a8dadc; padding-bottom: 5px; }
         .direction-line span { font-size: 14px; background: #e9ecef; padding: 0 10px; transform: translateY(14px); }
         #card-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 20px; }
         
@@ -111,20 +105,24 @@
         .result-fail { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
         #spectator-overlay { padding: 20px; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; border-radius: 8px; margin-bottom: 20px; display: none; }
 
-        #toast-notification {
-            position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-            background-color: rgba(42, 157, 143, 0.95); color: white;
-            padding: 12px 24px; border-radius: 30px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 2000;
-            opacity: 0; transition: opacity 0.5s ease; pointer-events: none;
-            font-weight: bold; font-size: 16px;
-        }
+        #toast-notification { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background-color: rgba(42, 157, 143, 0.95); color: white; padding: 12px 24px; border-radius: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 2000; opacity: 0; transition: opacity 0.5s ease; pointer-events: none; font-weight: bold; font-size: 16px; }
         #toast-notification.show { opacity: 1; }
 
         .mode-selector { display: flex; justify-content: center; gap: 10px; margin-bottom: 15px; }
         .mode-item { padding: 8px 12px; border: 1px solid #ccc; border-radius: 20px; font-size: 14px; cursor: pointer; background: #f9f9f9; color: #666; }
         .mode-item.selected { background: #457b9d; color: white; border-color: #457b9d; font-weight: bold; }
         .mode-item.disabled { opacity: 0.5; cursor: not-allowed; background: #eee; }
+
+        /* 投票区域 */
+        #voting-section {
+            background: #fff0f3; border: 2px solid #e63946; padding: 20px; border-radius: 12px; margin-top: 20px;
+        }
+        .vote-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 10px; }
+        .vote-btn {
+            padding: 10px 20px; background: white; border: 2px solid #457b9d; border-radius: 8px; cursor: pointer; font-weight: bold;
+        }
+        .vote-btn:hover { background: #e9ecef; }
+        .vote-btn.selected { background: #e63946; color: white; border-color: #e63946; }
 
         h1.main-title { color: #e63946; margin-bottom: 20px; font-size: 24px; line-height: 1.4; }
 
@@ -135,23 +133,9 @@
             .player-box { max-height: 100px; }
             .player-item { display: inline-block; margin-right: 10px; }
             
-            #chat-container { 
-                position: fixed; bottom: 0; left: 0; right: 0; z-index: 99; 
-                height: auto; border-radius: 12px 12px 0 0; 
-                box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-                transition: transform 0.3s ease;
-                display: flex; flex-direction: column; padding: 0; 
-            }
-            #chat-header {
-                display: flex; justify-content: center; align-items: center;
-                height: 30px; background: #e9ecef; border-radius: 12px 12px 0 0;
-                color: #666; font-size: 12px; cursor: pointer; border-bottom: 1px solid #ddd;
-                flex-shrink: 0;
-            }
-            #chat-messages { 
-                flex: none; height: 200px; 
-                margin: 0; border: none; border-radius: 0; overflow-y: auto; 
-            }
+            #chat-container { position: fixed; bottom: 0; left: 0; right: 0; z-index: 99; height: auto; border-radius: 12px 12px 0 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); transition: transform 0.3s ease; display: flex; flex-direction: column; padding: 0; }
+            #chat-header { display: flex; justify-content: center; align-items: center; height: 30px; background: #e9ecef; border-radius: 12px 12px 0 0; color: #666; font-size: 12px; cursor: pointer; border-bottom: 1px solid #ddd; flex-shrink: 0; }
+            #chat-messages { flex: none; height: 200px; margin: 0; border: none; border-radius: 0; overflow-y: auto; }
             .chat-controls { padding: 10px; background: white; }
             #chat-container.collapsed { transform: translateY(calc(100% - 30px)); }
 
@@ -189,11 +173,14 @@
 
     <div id="game-screen" class="container hidden">
         <div class="top-bar">
-            <div style="text-align:left;">
-                <div style="font-size:14px; color:#666;">用户: <strong id="my-name-display"></strong></div>
-                <div style="font-size:12px; color:#999; margin-top:2px;">
-                    <a href="javascript:doLogout()" style="color:#666;">退出登录</a>
+            <div style="text-align:left; display:flex; align-items:center;">
+                <div>
+                    <div style="font-size:14px; color:#666;">用户: <strong id="my-name-display"></strong></div>
+                    <div style="font-size:12px; color:#999; margin-top:2px;">
+                        <a href="javascript:doLogout()" style="color:#666;">退出登录</a>
+                    </div>
                 </div>
+                <div id="role-badge" class="hidden" onclick="toggleRoleDisplay()">?</div>
             </div>
             <button id="btn-emergency-reset" class="btn btn-red" style="font-size:12px; padding:5px 10px;" onclick="handleEmergencyReset()">⚠ 重置本局</button>
         </div>
@@ -224,6 +211,16 @@
                     ⚠ 游戏正在进行中，请等待本局结束后自动加入。<br>目前您只能观看和聊天，<b>无法拖动牌</b>。
                 </div>
 
+                <div id="voting-section" class="hidden">
+                    <h3 style="color:#e63946; margin-top:0;">🗳️ 投票找出狼人</h3>
+                    <p id="voting-instruction">请点击下方按钮选择你认为的狼人，然后提交。</p>
+                    <div id="vote-candidates" class="vote-grid"></div>
+                    <div style="margin-top:15px;">
+                        <button id="btn-submit-vote" class="btn btn-red" onclick="submitVote()" disabled>提交投票</button>
+                    </div>
+                    <p id="vote-status" style="font-size:12px; color:#666; margin-top:10px;"></p>
+                </div>
+
                 <div class="theme-box">
                     <small>当前主题</small>
                     <div id="theme-display">...</div>
@@ -252,7 +249,7 @@
                     <div class="mode-selector" id="mode-selector-area">
                         <div class="mode-item selected" onclick="selectMode('normal')">普通模式</div>
                         <div class="mode-item" onclick="selectMode('double')">双牌模式</div>
-                        <div class="mode-item disabled">狼人模式</div>
+                        <div class="mode-item" onclick="selectMode('wolf')">狼人模式 (5人+)</div>
                     </div>
 
                     <div style="display: flex; justify-content: center; gap: 10px;">
@@ -273,7 +270,9 @@
 
         let myUid = localStorage.getItem('ito_uid');
         let myName = localStorage.getItem('ito_name');
-        let myHand = []; // 改为数组：{cardId, number, desc}
+        let myHand = []; 
+        let myRole = null; // 'villager' | 'wolf' | null
+        let roleHidden = true;
         let isSpectator = false;
         let currentStatus = 'waiting'; 
         let activePlayerCount = 0; 
@@ -285,6 +284,9 @@
         let afkTimer = null;
         const AFK_LIMIT = 5 * 60 * 1000;
         let isChatCollapsed = false;
+        // 投票相关
+        let currentVoteTarget = null;
+        let allPlayersCache = []; // 缓存玩家列表用于渲染投票按钮
 
         function toggleChat() {
             const container = document.getElementById('chat-container');
@@ -425,6 +427,7 @@
             isSpectator = player.isSpectator;
             currentStatus = data.gameConfig.status;
             activePlayerCount = data.activePlayerCount;
+            myRole = player.role; // 恢复角色
             
             document.getElementById('login-screen').classList.add('hidden');
             document.getElementById('game-screen').classList.remove('hidden');
@@ -435,27 +438,36 @@
             chatBox.innerHTML = ''; 
             data.chatHistory.forEach(msg => appendChat(msg));
 
-            // 更新手牌
             updateMyHandArea(player.hand);
+            updateRoleDisplay();
 
-            renderTable(data.tableCards, currentStatus === 'revealed');
+            // 恢复投票状态
+            if (currentStatus === 'voting' && data.votingData) {
+                renderVotingUI(data.votingData.round, data.votingData.tiedCandidates);
+                if (data.votingData.hasVoted) {
+                    document.getElementById('voting-instruction').textContent = "已投票，等待结果...";
+                    document.getElementById('btn-submit-vote').disabled = true;
+                    document.getElementById('btn-submit-vote').textContent = "已提交";
+                }
+            } else {
+                document.getElementById('voting-section').classList.add('hidden');
+            }
+
+            renderTable(data.tableCards, currentStatus === 'revealed'); // 投票时也是revealed状态(看得到数字)
             toggleSpectatorMode(isSpectator);
             updateGameButtons();
             resetAfkTimer();
         });
 
         socket.on('updatePlayerList', (list) => {
-            // --- 修复开始：同步自己的旁观者状态 ---
+            allPlayersCache = list; // 缓存列表
+            // 同步旁观状态
             const me = list.find(p => p.uid === myUid);
-            if (me) {
-                // 如果服务器状态变了（例如游戏结束转正），本地也要更新
-                if (isSpectator !== me.isSpectator) {
-                    isSpectator = me.isSpectator;
-                    toggleSpectatorMode(isSpectator); // 更新遮罩层显示/隐藏
-                }
+            if (me && isSpectator !== me.isSpectator) {
+                isSpectator = me.isSpectator;
+                toggleSpectatorMode(isSpectator);
             }
-            // --- 修复结束 ---
-            
+
             const container = document.getElementById('player-list-container');
             container.innerHTML = '';
             activePlayerCount = list.filter(p => !p.isSpectator && p.online).length;
@@ -464,10 +476,10 @@
                 const div = document.createElement('div');
                 div.className = 'player-item';
                 if (p.uid === myUid) div.classList.add('is-me');
-                // 这里的 done 逻辑比较复杂了，因为有两张牌，暂且不显示 ✅ 
+                if (p.isPlayed) div.classList.add('done');
                 if (!p.online) div.classList.add('offline'); 
                 
-                let statusText = p.isSpectator ? " (旁观)" : "";
+                let statusText = p.isSpectator ? " (旁观)" : (p.isPlayed ? " ✅" : "");
                 if (!p.online) statusText += " (离线)";
                 
                 div.textContent = p.name + statusText;
@@ -489,31 +501,34 @@
             currentStatus = 'playing';
             activePlayerCount = data.activePlayerCount;
             
+            // 清理UI
             isSpectator = false; 
             toggleSpectatorMode(false);
-            
             document.getElementById('result-bar').style.display = 'none';
-            updateMyHandArea([]); // 清空手牌，等待发牌
+            document.getElementById('voting-section').classList.add('hidden');
+            updateMyHandArea([]); 
+            myRole = null; // 重置角色
+            updateRoleDisplay();
             updateGameButtons();
         });
         
-        socket.on('forceReset', () => {
-             location.reload();
-        });
-
-        // 接收手牌数组
         socket.on('yourHand', (hand) => {
             updateMyHandArea(hand);
+        });
+
+        socket.on('yourRole', (role) => {
+            myRole = role;
+            updateRoleDisplay();
+        });
+
+        socket.on('forceReset', () => {
+             location.reload();
         });
 
         socket.on('updateTable', (cards) => {
             tableCardCount = cards.length;
             renderTable(cards);
             updateGameButtons();
-        });
-
-        socket.on('playerTakenBack', (uid) => {
-            // 在双牌模式下，不需要全局状态标记，直接依赖 yourHand 更新
         });
 
         socket.on('gameResult', (data) => {
@@ -524,23 +539,169 @@
             bar.style.display = 'block';
             bar.className = '';
             if (data.isSuccess) {
-                bar.textContent = "🎉 挑战成功！顺序完美！";
+                bar.textContent = "🎉 排序正确！";
                 bar.classList.add('result-success');
             } else {
-                bar.textContent = "💀 挑战失败！标红的卡片顺序错了。";
+                bar.textContent = "💀 排序错误！";
                 bar.classList.add('result-fail');
             }
             bar.scrollIntoView({ behavior: 'smooth' });
             updateGameButtons();
         });
 
+        // --- 狼人模式事件 ---
+        socket.on('startVoting', (data) => {
+            currentStatus = 'voting';
+            renderVotingUI(data.round, data.tiedCandidates);
+            // 滚动到投票区
+            setTimeout(() => {
+                document.getElementById('voting-section').scrollIntoView({ behavior: 'smooth' });
+            }, 100);
+        });
+
+        socket.on('voteUpdate', (data) => {
+            document.getElementById('vote-status').textContent = `投票进度: ${data.votedCount} / ${data.totalCount}`;
+        });
+
+        socket.on('votingResultInfo', (data) => {
+            customAlert(data.msg);
+        });
+
+        socket.on('wolfGameEnd', (data) => {
+            // 显示详细结算弹窗
+            let roleListHtml = '<ul style="list-style:none; padding:0; margin-top:10px;">';
+            
+            // 遍历所有玩家显示身份
+            for(let uid in data.players) {
+                const p = data.players[uid];
+                if (!p.isSpectator) {
+                    const roleName = p.role === 'wolf' ? '🐺 狼人' : '🙂 平民';
+                    const color = p.role === 'wolf' ? 'red' : 'green';
+                    roleListHtml += `<li style="margin-bottom:5px;">
+                        <b>${p.name}</b>: <span style="color:${color}">${roleName}</span>
+                    </li>`;
+                }
+            }
+            roleListHtml += '</ul>';
+
+            const title = data.winner === 'villager' ? "🎉 平民阵营胜利！" : "😈 狼人阵营胜利！";
+            showModal(title, `
+                <div style="text-align:center;">
+                    <h3>${data.reason}</h3>
+                    <hr>
+                    <h4>身份揭晓</h4>
+                    ${roleListHtml}
+                </div>
+            `, null, null); // 仅展示，点击确定关闭
+        });
+
         socket.on('gameEnded', () => {});
 
         socket.on('chatMessage', (msg) => { appendChat(msg); });
 
-        // --- 动态渲染手牌区域 (核心修改) ---
+        // --- 投票UI渲染 ---
+        function renderVotingUI(round, tiedCandidates) {
+            const section = document.getElementById('voting-section');
+            const grid = document.getElementById('vote-candidates');
+            const instruction = document.getElementById('voting-instruction');
+            const btnSubmit = document.getElementById('btn-submit-vote');
+            
+            section.classList.remove('hidden');
+            grid.innerHTML = '';
+            currentVoteTarget = null;
+            btnSubmit.disabled = true;
+            btnSubmit.textContent = "提交投票";
+
+            // 判断我是否有权投票
+            // 规则：旁观者无权；PK轮候选人无权
+            let canVote = !isSpectator;
+            if (round > 1 && tiedCandidates.includes(myUid)) {
+                canVote = false;
+            }
+
+            if (!canVote) {
+                instruction.textContent = "你当前没有投票权（旁观者或PK候选人）。";
+                btnSubmit.classList.add('hidden');
+                return; 
+            } else {
+                btnSubmit.classList.remove('hidden');
+            }
+
+            // 渲染候选人
+            let candidates = [];
+            if (round === 1) {
+                // 第一轮：除了自己以外的所有活跃玩家
+                candidates = allPlayersCache.filter(p => !p.isSpectator && p.online && p.uid !== myUid);
+                instruction.textContent = "请找出狼人！点击名字投票。";
+            } else {
+                // PK轮：只能投平票者
+                candidates = allPlayersCache.filter(p => tiedCandidates.includes(p.uid));
+                instruction.textContent = "PK轮！请在平票玩家中选择一名投票。";
+            }
+
+            candidates.forEach(p => {
+                const btn = document.createElement('div');
+                btn.className = 'vote-btn';
+                btn.textContent = p.name;
+                btn.onclick = () => {
+                    // 选中逻辑
+                    document.querySelectorAll('.vote-btn').forEach(b => b.classList.remove('selected'));
+                    btn.classList.add('selected');
+                    currentVoteTarget = p.uid;
+                    btnSubmit.disabled = false;
+                };
+                grid.appendChild(btn);
+            });
+        }
+
+        function submitVote() {
+            if (!currentVoteTarget) return;
+            customConfirm("确定要投给这位玩家吗？提交后不可更改。", () => {
+                socket.emit('submitVote', { uid: myUid, targetUid: currentVoteTarget });
+                // 锁定界面
+                document.getElementById('vote-candidates').innerHTML = '<div style="text-align:center; color:#666;">已投票</div>';
+                document.getElementById('btn-submit-vote').disabled = true;
+            });
+        }
+
+        // --- 身份显示控制 ---
+        function updateRoleDisplay() {
+            const badge = document.getElementById('role-badge');
+            if (myRole) {
+                badge.classList.remove('hidden');
+                roleHidden = true; // 默认隐藏
+                renderRoleBadge();
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        function toggleRoleDisplay() {
+            roleHidden = !roleHidden;
+            renderRoleBadge();
+        }
+
+        function renderRoleBadge() {
+            const badge = document.getElementById('role-badge');
+            if (!myRole) return;
+
+            if (roleHidden) {
+                badge.textContent = "身份：??? (点击查看)";
+                badge.className = "role-hidden";
+            } else {
+                if (myRole === 'villager') {
+                    badge.textContent = "身份：🙂 平民";
+                    badge.className = "role-villager";
+                } else {
+                    badge.textContent = "身份：🐺 狼人";
+                    badge.className = "role-wolf";
+                }
+            }
+        }
+
+        // --- 手牌渲染 ---
         function updateMyHandArea(hand) {
-            myHand = hand; // 更新本地缓存
+            myHand = hand; 
             const area = document.getElementById('my-hand-area');
             area.innerHTML = '';
 
@@ -550,17 +711,14 @@
                     const cardDiv = document.createElement('div');
                     cardDiv.className = 'hand-card-item';
                     
-                    // 卡牌数字
                     const numDiv = document.createElement('div');
                     numDiv.className = 'card-number';
                     numDiv.textContent = card.number;
                     cardDiv.appendChild(numDiv);
 
-                    // 描述输入框
                     const inputDiv = document.createElement('div');
                     inputDiv.className = 'desc-input-group';
                     
-                    // 如果已经确认了描述，显示文本和出牌按钮
                     if (card.desc) {
                         inputDiv.innerHTML = `
                             <div style="margin-bottom:10px;">
@@ -570,7 +728,6 @@
                             <button class="btn btn-blue" style="width:100%;" onclick="playCard('${card.cardId}')">出牌</button>
                         `;
                     } else {
-                        // 否则显示输入框
                         inputDiv.innerHTML = `
                             <input type="text" id="input-${card.cardId}" placeholder="描述..." maxlength="20" style="width:120px;">
                             <button class="btn btn-green" onclick="confirmCardDesc('${card.cardId}')">确定</button>
@@ -580,9 +737,6 @@
                     area.appendChild(cardDiv);
                 });
                 
-                // 补充：收回按钮区 (如果有牌在桌上)
-                // 在双牌模式下，收回逻辑比较复杂，建议通过点击桌上的牌来收回？
-                // 为了保持一致性，我们可以在这里放一个通用的提示，或者依靠点击桌面牌收回
                 const hint = document.createElement('div');
                 hint.style.width = "100%";
                 hint.style.fontSize = "12px";
@@ -600,18 +754,14 @@
             const input = document.getElementById(`input-${cardId}`);
             const val = input.value.trim();
             if (!val) return customAlert("请输入描述");
-            
-            // 发送更新
             socket.emit('updateDesc', { uid: myUid, cardId: cardId, desc: val });
-            
-            // 本地乐观更新 (为了快速响应，实际会收到 yourHand 更新)
             const card = myHand.find(c => c.cardId === cardId);
             if(card) card.desc = val;
             updateMyHandArea(myHand);
         }
 
         function editDesc(cardId) {
-            socket.emit('updateDesc', { uid: myUid, cardId: cardId, desc: "" }); // 清空描述即为修改模式
+            socket.emit('updateDesc', { uid: myUid, cardId: cardId, desc: "" }); 
             const card = myHand.find(c => c.cardId === cardId);
             if(card) card.desc = "";
             updateMyHandArea(myHand);
@@ -621,7 +771,6 @@
             socket.emit('playCard', { uid: myUid, cardId: cardId });
         }
 
-        // 点击桌面的牌收回 (绑定在 renderTable)
         function requestTakeBack(cardId) {
             socket.emit('takeBackCard', { uid: myUid, cardId: cardId });
         }
@@ -663,13 +812,18 @@
         }
 
         function selectMode(mode) {
-            if (mode === 'wolf') return; // 狼人模式暂未开放
+            // 狼人模式人数限制
+            if (mode === 'wolf' && activePlayerCount < 5) {
+                showToast("狼人模式至少需要5名玩家");
+                return;
+            }
             selectedMode = mode;
             const items = document.querySelectorAll('.mode-item');
             items.forEach(el => el.classList.remove('selected'));
             
             if(mode === 'normal') items[0].classList.add('selected');
             if(mode === 'double') items[1].classList.add('selected');
+            if(mode === 'wolf') items[2].classList.add('selected');
         }
 
         function updateGameButtons() {
@@ -682,6 +836,16 @@
             const themeBtn = document.getElementById('btn-set-theme');
             const randomBtn = document.getElementById('btn-random-theme');
             const themeInput = document.getElementById('theme-input');
+
+            // 更新狼人模式按钮状态 (人数限制)
+            const wolfBtn = document.querySelectorAll('.mode-item')[2];
+            if (activePlayerCount >= 5) {
+                wolfBtn.classList.remove('disabled');
+            } else {
+                wolfBtn.classList.add('disabled');
+                // 如果当前选了狼人但人数不够了，切回普通
+                if (selectedMode === 'wolf') selectMode('normal');
+            }
 
             if (currentStatus === 'playing') {
                 btnStart.classList.add('hidden'); 
@@ -707,9 +871,6 @@
                 themeInput.disabled = false;
             }
 
-            // 结算逻辑：桌上牌 > 0 且 所有活跃玩家手牌为空 (需后端校验，前端仅做简单人数判断或一直开放)
-            // 简单判断：桌上牌 >= 活跃人数 * 模式倍率 (但这不知道模式)
-            // 为了简化，只要桌上有牌且 >= 活跃人数就亮起，后端会做最终校验
             if (currentStatus === 'playing' && tableCardCount > 0 && tableCardCount >= activePlayerCount) {
                 btnReveal.disabled = false;
             } else {
@@ -753,7 +914,6 @@
         }
 
         function tryRevealCards() {
-            // 前端无法准确判断所有手牌是否出完，直接提交给后端校验
             customConfirm("确定所有人都出牌完毕，并确认结算吗？", () => {
                 socket.emit('revealCards');
             });
@@ -774,7 +934,6 @@
             const msg = input.value.trim();
             if (!msg) return;
 
-            // 检测手牌所有数字
             let hasSecret = false;
             if (myHand && myHand.length > 0) {
                 for (let c of myHand) {
@@ -814,11 +973,10 @@
                 
                 if (c.uid === myUid) {
                     el.classList.add('is-mine');
-                    // 允许自己点击收回 (仅在未开牌时)
-                    if (!isRevealed) {
+                    if (!isRevealed && currentStatus !== 'voting') {
                         el.onclick = () => {
                             if(confirm("要把这张牌收回手牌吗？")) {
-                                requestTakeBack(c.cardId); // 使用 cardId
+                                requestTakeBack(c.cardId); 
                             }
                         };
                         el.title = "点击收回";
@@ -826,12 +984,13 @@
                     }
                 }
 
-                if (!isRevealed && !isSpectator) {
+                // 投票阶段禁止拖拽，已揭示禁止拖拽
+                if (!isRevealed && !isSpectator && currentStatus !== 'voting') {
                     el.classList.add('can-drag');
                 }
 
                 if (failedIndices.includes(index)) el.classList.add('error');
-                el.setAttribute('data-uid', c.cardId); // Sortable 使用 cardId 排序
+                el.setAttribute('data-uid', c.cardId); 
 
                 const front = document.createElement('div');
                 front.className = 'card-front';
@@ -850,7 +1009,7 @@
                 list.appendChild(el);
             });
 
-            if (!isRevealed) {
+            if (!isRevealed && currentStatus !== 'voting') {
                 if (!sortableInstance) {
                     sortableInstance = new Sortable(list, {
                         animation: 150,
