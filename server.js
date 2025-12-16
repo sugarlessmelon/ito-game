@@ -1,3 +1,8 @@
+/**
+ * Ito Online Server - Ver.3.0
+ * 包含：狼人模式完整逻辑、拖拽互斥锁、投票倒计时、防挂机、掉线保护
+ */
+
 const express = require('express');
 const http = require('http');
 const { Server } = require("socket.io");
@@ -16,35 +21,45 @@ app.use(express.static(__dirname));
 let players = {}; 
 let tableCards = []; 
 let chatHistory = []; 
+// 拖拽锁: { cardId: uid }，记录哪张牌正在被谁拖动
+let dragLocks = {}; 
+
 let gameConfig = {
     theme: "等待设置题目...",
-    status: "waiting", // 'waiting', 'playing', 'revealed', 'voting'
-    mode: "normal"     // 'normal', 'double', 'wolf'
+    status: "waiting", // 'waiting', 'playing', 'revealed', 'voting', 'game_over'
+    mode: "normal" 
 };
 
-// 投票相关数据
+// 投票数据
 let votingData = {
-    round: 1,           // 1: 第一轮, 2: 平票PK轮
+    round: 1,
     votes: {},          // { voterUid: targetUid }
-    tiedCandidates: []  // 平票PK时的候选人UID
+    tiedCandidates: [],
+    timer: null,        // 倒计时引用
+    endTime: 0          // 倒计时结束时间戳
 };
 
 let autoResetTimer = null;
 
+// 获取公开桌面数据
 function getPublicTableData() {
-    // 只有在 'revealed' (普通模式结算) 或 'game_over' (狼人模式彻底结束) 时才显示数字
-    // 注意：狼人模式进入 'voting' 阶段时，牌的数字其实已经公开了（因为是排序失败后才投票）
-    // 所以只要 status 不是 playing/waiting，理论上都可以看牌
-    if (gameConfig.status === 'playing' || gameConfig.status === 'waiting') {
+    // 修改点：在投票阶段(voting)和游戏彻底结束(game_over)时，必须显示数字
+    const showNumbers = ['revealed', 'voting', 'game_over'].includes(gameConfig.status);
+
+    if (showNumbers) {
+        return tableCards.map(c => ({
+            ...c,
+            lockedBy: dragLocks[c.cardId] || null // 即使显示数字也要传锁状态
+        }));
+    } else {
         return tableCards.map(c => ({
             uid: c.uid,
             cardId: c.cardId,
             name: c.name,
             desc: c.desc,
+            lockedBy: dragLocks[c.cardId] || null, // 传递锁状态
             number: null 
         }));
-    } else {
-        return tableCards; 
     }
 }
 
@@ -57,6 +72,7 @@ function resetGameData() {
     players = {};
     tableCards = [];
     chatHistory = [];
+    dragLocks = {}; // 清空锁
     gameConfig = {
         theme: "等待设置题目...",
         status: "waiting",
@@ -66,18 +82,19 @@ function resetGameData() {
 }
 
 function resetVotingData() {
+    if (votingData.timer) clearTimeout(votingData.timer);
     votingData = {
         round: 1,
         votes: {},
-        tiedCandidates: []
+        tiedCandidates: [],
+        timer: null,
+        endTime: 0
     };
 }
 
 function dealCardsToPlayers() {
     let numbers = Array.from({length: 100}, (_, i) => i + 1);
     numbers.sort(() => Math.random() - 0.5);
-
-    // 狼人模式和普通模式发1张，双牌发2张
     const cardsPerPlayer = gameConfig.mode === 'double' ? 2 : 1;
 
     for (let uid in players) {
@@ -91,14 +108,11 @@ function dealCardsToPlayers() {
                     desc: ""
                 });
             }
-            if (p.socketId) {
-                io.to(p.socketId).emit('yourHand', p.hand);
-            }
+            if (p.socketId) io.to(p.socketId).emit('yourHand', p.hand);
         }
     }
 }
 
-// --- 狼人模式：分配身份 ---
 function assignRoles() {
     const activePlayers = Object.values(players).filter(p => !p.isSpectator && p.online);
     const count = activePlayers.length;
@@ -107,9 +121,8 @@ function assignRoles() {
     if (count >= 12) wolfCount = 3;
     else if (count >= 7) wolfCount = 2;
     else if (count >= 5) wolfCount = 1;
-    else return; // 人数不足，虽然前端限制了，后端兜底
+    else return; 
 
-    // 随机选狼
     let wolfIndices = new Set();
     while(wolfIndices.size < wolfCount) {
         wolfIndices.add(Math.floor(Math.random() * count));
@@ -117,11 +130,43 @@ function assignRoles() {
 
     activePlayers.forEach((p, index) => {
         p.role = wolfIndices.has(index) ? 'wolf' : 'villager';
-        // 私发身份
-        if (p.socketId) {
-            io.to(p.socketId).emit('yourRole', p.role);
+        if (p.socketId) io.to(p.socketId).emit('yourRole', p.role);
+    });
+}
+
+// --- 投票超时处理 ---
+function handleVotingTimeout() {
+    console.log("投票时间到，执行强制随机投票...");
+    const activeVoters = Object.values(players).filter(p => {
+        if (p.isSpectator || !p.online) return false;
+        if (votingData.round > 1 && votingData.tiedCandidates.includes(p.uid)) return false;
+        return true;
+    });
+
+    activeVoters.forEach(voter => {
+        // 如果这人还没投
+        if (!votingData.votes[voter.uid]) {
+            // 确定合法的目标池
+            let validTargets = [];
+            if (votingData.round === 1) {
+                validTargets = Object.values(players)
+                    .filter(t => !t.isSpectator && t.online && t.uid !== voter.uid)
+                    .map(t => t.uid);
+            } else {
+                validTargets = votingData.tiedCandidates.filter(uid => uid !== voter.uid);
+            }
+
+            if (validTargets.length > 0) {
+                const randomTarget = validTargets[Math.floor(Math.random() * validTargets.length)];
+                votingData.votes[voter.uid] = randomTarget;
+                // 通知前端他“被”投票了
+                if (voter.socketId) io.to(voter.socketId).emit('forceVote', randomTarget);
+            }
         }
     });
+
+    // 强制结算
+    resolveVotes();
 }
 
 io.on('connection', (socket) => {
@@ -137,7 +182,7 @@ io.on('connection', (socket) => {
             players[uid].online = true; 
         } else {
             let isSpectator = false;
-            if (gameConfig.status !== 'waiting') { // 只要游戏开始了，新来的就是观众
+            if (gameConfig.status !== 'waiting') { 
                 isSpectator = true;
             }
 
@@ -145,7 +190,7 @@ io.on('connection', (socket) => {
                 uid: uid,
                 name: name || "无名氏",
                 hand: [], 
-                role: null, // 'villager' | 'wolf'
+                role: null, 
                 isSpectator: isSpectator,
                 online: true,
                 socketId: socket.id
@@ -166,7 +211,8 @@ io.on('connection', (socket) => {
             votingData: (gameConfig.status === 'voting') ? {
                 round: votingData.round,
                 tiedCandidates: votingData.tiedCandidates,
-                hasVoted: !!votingData.votes[uid] // 告诉前端我是否投过票了
+                hasVoted: !!votingData.votes[uid],
+                endTime: votingData.endTime // 发送倒计时截止时间
             } : null
         });
         
@@ -180,9 +226,7 @@ io.on('connection', (socket) => {
         gameConfig.theme = theme;
         io.to('gameRoom').emit('updateTheme', theme);
 
-        if (gameConfig.status === 'playing') {
-            dealCardsToPlayers();
-        }
+        if (gameConfig.status === 'playing') dealCardsToPlayers();
     });
 
     socket.on('requestRandomTheme', () => {
@@ -195,21 +239,18 @@ io.on('connection', (socket) => {
         gameConfig.theme = formattedTheme;
         io.to('gameRoom').emit('updateTheme', formattedTheme);
 
-        if (gameConfig.status === 'playing') {
-            dealCardsToPlayers();
-        }
+        if (gameConfig.status === 'playing') dealCardsToPlayers();
     });
 
     socket.on('startGame', (mode) => {
         resetVotingData();
+        dragLocks = {}; // 清空拖拽锁
         tableCards = []; 
         gameConfig.status = 'playing'; 
         gameConfig.mode = mode || 'normal';
         gameConfig.theme = "请设置主题以开始发牌..."; 
 
-        // 如果是狼人模式，检查人数
         if (gameConfig.mode === 'wolf' && getActivePlayerCount() < 5) {
-            // 虽然前端挡住了，后端防一手，强制切回普通
             gameConfig.mode = 'normal';
         }
 
@@ -222,19 +263,16 @@ io.on('connection', (socket) => {
         for (let uid in players) {
             players[uid].isSpectator = false; 
             players[uid].hand = [];
-            players[uid].role = null; // 重置身份
+            players[uid].role = null; 
             
             const socketId = players[uid].socketId;
             if (socketId && players[uid].online) {
                 io.to(socketId).emit('yourHand', []);
-                io.to(socketId).emit('yourRole', null); // 清空身份显示
+                io.to(socketId).emit('yourRole', null); 
             }
         }
 
-        // 狼人模式分配身份
-        if (gameConfig.mode === 'wolf') {
-            assignRoles();
-        }
+        if (gameConfig.mode === 'wolf') assignRoles();
 
         io.to('gameRoom').emit('updateTable', getPublicTableData()); 
         io.to('gameRoom').emit('updatePlayerList', Object.values(players));
@@ -287,6 +325,26 @@ io.on('connection', (socket) => {
         }
     });
 
+    // --- 拖拽锁逻辑 ---
+    socket.on('cardDragStart', ({ uid, cardId }) => {
+        // 只有未被锁的才能锁
+        if (!dragLocks[cardId]) {
+            dragLocks[cardId] = uid;
+            // 广播更新（前端看到锁会变灰）
+            io.to('gameRoom').emit('updateTable', getPublicTableData());
+        }
+    });
+
+    socket.on('cardDragEnd', ({ uid, cardId }) => {
+        // 只有锁的主人才能解锁
+        if (dragLocks[cardId] === uid) {
+            delete dragLocks[cardId];
+            // 这里通常不需要广播，因为紧接着会触发 reorderCards，那里会广播
+            // 但为了保险（比如拖动没改变位置），可以广播一下，或者等reorder覆盖
+            io.to('gameRoom').emit('updateTable', getPublicTableData());
+        }
+    });
+
     socket.on('reorderCards', (newOrderIndices) => {
         if (!Array.isArray(newOrderIndices)) return;
         const newTable = [];
@@ -302,11 +360,16 @@ io.on('connection', (socket) => {
     
     socket.on('takeBackCard', ({uid, cardId}) => {
         const p = players[uid];
-        if(p && gameConfig.status !== 'revealed' && gameConfig.status !== 'voting') {
+        if(p && gameConfig.status !== 'revealed' && gameConfig.status !== 'voting' && gameConfig.status !== 'game_over') {
             const cardIndex = tableCards.findIndex(c => c.cardId === cardId);
             if (cardIndex !== -1 && tableCards[cardIndex].uid === uid) {
+                // 如果被别人锁住了，不能收回
+                if (dragLocks[cardId] && dragLocks[cardId] !== uid) return;
+
                 const card = tableCards[cardIndex];
                 tableCards.splice(cardIndex, 1);
+                delete dragLocks[cardId]; // 清除锁
+
                 p.hand.push({
                     cardId: card.cardId,
                     number: card.number,
@@ -333,7 +396,6 @@ io.on('connection', (socket) => {
         }
         if (tableCards.length === 0 || !allHandsEmpty) return;
 
-        // 检查排序是否成功
         let isSuccess = true;
         let failedIndices = [];
         for (let i = 0; i < tableCards.length - 1; i++) {
@@ -343,171 +405,161 @@ io.on('connection', (socket) => {
             }
         }
 
-        // --- 核心逻辑分歧 ---
-        if (gameConfig.mode === 'wolf') {
-            gameConfig.status = 'revealed'; // 先设为开牌状态让大家看数字
-            
-            // 广播开牌结果
-            io.to('gameRoom').emit('gameResult', { 
-                tableCards: tableCards, 
-                isSuccess: isSuccess,
-                failedIndices: failedIndices
-            });
+        // 先全部公开数字
+        gameConfig.status = 'revealed';
+        io.to('gameRoom').emit('gameResult', { 
+            tableCards: tableCards, // 发送含数字数据
+            isSuccess: isSuccess,
+            failedIndices: failedIndices
+        });
 
+        if (gameConfig.mode === 'wolf') {
             if (isSuccess) {
-                // 1. 排序成功 -> 平民直接胜利
-                io.to('gameRoom').emit('wolfGameEnd', { 
-                    winner: 'villager', 
-                    reason: 'ito 排序成功！',
-                    players: players // 发送所有玩家信息以便展示身份
-                });
-                finishGame();
+                finishWolfGame('villager', 'ito 排序成功！平民直接胜利！');
             } else {
-                // 2. 排序失败 -> 进入投票阶段
+                // 失败，进入投票
                 gameConfig.status = 'voting';
                 resetVotingData();
                 
+                // 3秒后开始投票
                 setTimeout(() => {
+                    // 设置120秒倒计时
+                    votingData.endTime = Date.now() + 120000; 
+                    votingData.timer = setTimeout(handleVotingTimeout, 120000);
+
                     io.to('gameRoom').emit('startVoting', { 
                         round: 1, 
-                        tiedCandidates: [] 
+                        tiedCandidates: [],
+                        endTime: votingData.endTime
                     });
-                }, 3000); // 延迟3秒让大家看清楚失败的排序
+                }, 3000); 
             }
-
         } else {
-            // 普通/双牌模式
-            gameConfig.status = 'revealed';
-            io.to('gameRoom').emit('gameResult', { 
-                tableCards: tableCards, 
-                isSuccess: isSuccess,
-                failedIndices: failedIndices
-            });
+            // 普通模式结束
             finishGame();
         }
     });
 
-    // --- 狼人投票逻辑 ---
     socket.on('submitVote', ({ uid, targetUid }) => {
-        // 校验合法性
         if (gameConfig.status !== 'voting') return;
-        if (votingData.votes[uid]) return; // 已经投过了
+        if (votingData.votes[uid]) return; 
         
-        // 如果是PK轮，投票人不能是候选人，目标必须是候选人
         if (votingData.round > 1) {
-            if (votingData.tiedCandidates.includes(uid)) return; // 候选人禁言
-            if (!votingData.tiedCandidates.includes(targetUid)) return; // 只能投候选人
+            if (votingData.tiedCandidates.includes(uid)) return; 
+            if (!votingData.tiedCandidates.includes(targetUid)) return; 
         }
 
         votingData.votes[uid] = targetUid;
 
-        // 检查是否所有有权投票的人都投了
         const activeVoters = Object.values(players).filter(p => {
             if (p.isSpectator || !p.online) return false;
-            // PK轮候选人不能投票
             if (votingData.round > 1 && votingData.tiedCandidates.includes(p.uid)) return false;
             return true;
         });
 
-        // 广播进度
         io.to('gameRoom').emit('voteUpdate', {
             votedCount: Object.keys(votingData.votes).length,
             totalCount: activeVoters.length
         });
 
         if (Object.keys(votingData.votes).length >= activeVoters.length) {
+            // 全部投完，清除定时器，立即结算
+            if (votingData.timer) clearTimeout(votingData.timer);
             resolveVotes();
         }
     });
 
     function resolveVotes() {
-        // 统计票数
         let counts = {};
         Object.values(votingData.votes).forEach(target => {
             counts[target] = (counts[target] || 0) + 1;
         });
 
-        // 找出最高票
         let maxVotes = 0;
         for (let target in counts) {
             if (counts[target] > maxVotes) maxVotes = counts[target];
         }
 
-        // 找出所有最高票的人
         let winners = [];
         for (let target in counts) {
             if (counts[target] === maxVotes) winners.push(target);
         }
 
-        // --- 判定逻辑 ---
-        
-        // 特殊规则：所有人都被指名1票 (Circle) -> 第一轮重投
-        // 条件：Round 1，所有人都得1票 (winners数量 == 投票总人数)
+        // --- 构建投票详情 ---
+        let voteDetails = {}; // { voterName: targetName }
+        for(let voterId in votingData.votes) {
+            const targetId = votingData.votes[voterId];
+            if(players[voterId] && players[targetId]) {
+                voteDetails[players[voterId].name] = players[targetId].name;
+            }
+        }
+
+        // 特殊规则：第一轮全员1票
         const voterCount = Object.keys(votingData.votes).length;
         if (votingData.round === 1 && winners.length === voterCount && maxVotes === 1) {
             io.to('gameRoom').emit('votingResultInfo', {
-                msg: "第一轮投票每人均得1票，视为无效，重新开始第一轮投票！",
-                votes: votingData.votes // 公示谁投了谁
+                msg: "第一轮投票每人均得1票，无效！重新开始投票。",
+                voteDetails: voteDetails // 显示谁投了谁
             });
-            // 重置投票数据但保持Round 1
             votingData.votes = {};
             votingData.tiedCandidates = [];
+            // 重启倒计时
+            if (votingData.timer) clearTimeout(votingData.timer);
             setTimeout(() => {
-                io.to('gameRoom').emit('startVoting', { round: 1, tiedCandidates: [] });
+                votingData.endTime = Date.now() + 120000;
+                votingData.timer = setTimeout(handleVotingTimeout, 120000);
+                io.to('gameRoom').emit('startVoting', { round: 1, tiedCandidates: [], endTime: votingData.endTime });
             }, 4000);
             return;
         }
 
-        // 平票处理
         if (winners.length > 1) {
             if (votingData.round === 1) {
-                // 进入PK轮
                 votingData.round = 2;
+                // 保留旧的 votes 用于展示，但清空用于下一轮
+                const lastVotes = voteDetails;
                 votingData.votes = {};
                 votingData.tiedCandidates = winners;
                 
                 io.to('gameRoom').emit('votingResultInfo', {
-                    msg: "发生平票！即将进入PK轮。",
-                    votes: votingData.votes // 这里的votes其实是上一轮的
+                    msg: "平票！进入PK轮。",
+                    voteDetails: lastVotes
                 });
 
+                if (votingData.timer) clearTimeout(votingData.timer);
                 setTimeout(() => {
+                    votingData.endTime = Date.now() + 120000;
+                    votingData.timer = setTimeout(handleVotingTimeout, 120000);
                     io.to('gameRoom').emit('startVoting', { 
                         round: 2, 
-                        tiedCandidates: winners 
+                        tiedCandidates: winners,
+                        endTime: votingData.endTime
                     });
                 }, 3000);
             } else {
-                // PK轮依然平票 -> 狼人胜利
-                io.to('gameRoom').emit('wolfGameEnd', {
-                    winner: 'wolf',
-                    reason: 'PK轮再次平票，狼人获胜！',
-                    players: players
-                });
-                finishGame();
+                finishWolfGame('wolf', 'PK轮再次平票，狼人获胜！', voteDetails);
             }
         } else {
-            // 有唯一最高票，处决该玩家
             const targetUid = winners[0];
             const targetPlayer = players[targetUid];
             
             if (targetPlayer.role === 'wolf') {
-                // 投中狼人 -> 平民胜
-                io.to('gameRoom').emit('wolfGameEnd', {
-                    winner: 'villager',
-                    reason: `成功投票放逐了狼人 (${targetPlayer.name})！`,
-                    players: players
-                });
+                finishWolfGame('villager', `成功放逐了狼人 (${targetPlayer.name})！`, voteDetails);
             } else {
-                // 投错好人 -> 狼人胜
-                io.to('gameRoom').emit('wolfGameEnd', {
-                    winner: 'wolf',
-                    reason: `错误放逐了平民 (${targetPlayer.name})，狼人获胜！`,
-                    players: players
-                });
+                finishWolfGame('wolf', `错误放逐了平民 (${targetPlayer.name})，狼人获胜！`, voteDetails);
             }
-            finishGame();
         }
+    }
+
+    function finishWolfGame(winner, reason, voteDetails = null) {
+        gameConfig.status = 'game_over';
+        io.to('gameRoom').emit('wolfGameEnd', {
+            winner: winner,
+            reason: reason,
+            players: players,
+            voteDetails: voteDetails
+        });
+        finishGame();
     }
 
     function finishGame() {
@@ -515,7 +567,7 @@ io.on('connection', (socket) => {
             players[uid].isSpectator = false; 
         }
         io.to('gameRoom').emit('updatePlayerList', Object.values(players));
-        io.to('gameRoom').emit('gameEnded'); // 解锁按钮
+        io.to('gameRoom').emit('gameEnded'); 
     }
 
     socket.on('sendChat', ({ uid, msg }) => {
@@ -536,10 +588,15 @@ io.on('connection', (socket) => {
         for (let uid in players) {
             if (players[uid].socketId === socket.id) {
                 players[uid].online = false; 
+                // 清除他持有的拖拽锁
+                for (let cardId in dragLocks) {
+                    if (dragLocks[cardId] === uid) delete dragLocks[cardId];
+                }
                 break;
             }
         }
         
+        io.to('gameRoom').emit('updateTable', getPublicTableData()); // 更新锁状态
         io.to('gameRoom').emit('updatePlayerList', Object.values(players));
 
         const room = io.sockets.adapter.rooms.get('gameRoom');
